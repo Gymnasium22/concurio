@@ -131,6 +131,8 @@ function applyTelegramTheme(tg: TelegramWebApp): void {
   }
 }
 
+const PENDING_TELEGRAM_BIND_KEY = 'concurio:pending-telegram-bind';
+
 /**
  * Получить пользователя Telegram из initDataUnsafe или из initData
  */
@@ -164,6 +166,37 @@ export function getTelegramUser() {
   } catch {
     return null;
   }
+}
+
+export function setPendingTelegramBind(value: boolean): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PENDING_TELEGRAM_BIND_KEY, value ? '1' : '0');
+}
+
+export function getPendingTelegramBind(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(PENDING_TELEGRAM_BIND_KEY) === '1';
+}
+
+export function openTelegramBindingLink(): boolean {
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  if (!botUsername) {
+    return false;
+  }
+
+  setPendingTelegramBind(true);
+
+  const deepLink = `tg://resolve?domain=${botUsername}&startapp=bind`;
+  const webLink = `https://t.me/${botUsername}?startapp=bind`;
+
+  if (typeof window !== 'undefined') {
+    window.location.href = deepLink;
+    window.setTimeout(() => {
+      window.open(webLink, '_blank', 'noopener,noreferrer');
+    }, 250);
+  }
+
+  return true;
 }
 
 /**

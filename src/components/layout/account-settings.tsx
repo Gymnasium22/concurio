@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Settings, LogOut, Link2, Unlink2, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { isTelegramApp, openTelegramBindingLink } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -34,6 +35,7 @@ export function AccountSettings() {
 
   const isTelegramLinked = Boolean(user.telegram_id);
   const authMethodLabel = user.auth_provider === 'telegram' || isTelegramLinked ? 'Telegram' : 'Email';
+  const isInTelegram = isTelegramApp();
 
   const runAction = async (action: () => Promise<boolean>, successText: string) => {
     setBusy(true);
@@ -46,6 +48,17 @@ export function AccountSettings() {
   };
 
   const handleLinkTelegram = async () => {
+    if (!isInTelegram) {
+      setBusy(true);
+      setMessage('Открываю Telegram Mini App для привязки…');
+      const opened = openTelegramBindingLink();
+      setBusy(false);
+      if (!opened) {
+        setMessage('Не удалось открыть Telegram Mini App. Проверьте настройки бота.');
+      }
+      return;
+    }
+
     await runAction(linkTelegramToCurrentAccount, 'Telegram успешно привязан к аккаунту');
   };
 
@@ -103,6 +116,12 @@ export function AccountSettings() {
                 {user.email ?? 'Аккаунт'}
               </div>
             </div>
+            <div className="flex items-center justify-between border-t border-[rgb(var(--border-default))] pt-2">
+              <span className="text-sm text-[rgb(var(--fg-secondary))]">Telegram</span>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isTelegramLinked ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
+                {isTelegramLinked ? 'Привязан' : 'Не привязан'}
+              </span>
+            </div>
           </div>
 
           {(message || error) && (
@@ -112,15 +131,15 @@ export function AccountSettings() {
           )}
 
           <div className="space-y-2">
-            {isTelegramLinked ? (
+            <Button type="button" className="w-full justify-start gap-2" onClick={handleLinkTelegram} disabled={busy || isLoading}>
+              <Link2 className="h-4 w-4" />
+              {isTelegramLinked ? 'Перепривязать Telegram' : 'Привязать Telegram'}
+            </Button>
+
+            {isTelegramLinked && (
               <Button type="button" variant="outline" className="w-full justify-start gap-2" onClick={handleUnlinkTelegram} disabled={busy || isLoading}>
                 <Unlink2 className="h-4 w-4" />
                 Отвязать Telegram
-              </Button>
-            ) : (
-              <Button type="button" className="w-full justify-start gap-2" onClick={handleLinkTelegram} disabled={busy || isLoading}>
-                <Link2 className="h-4 w-4" />
-                Привязать Telegram
               </Button>
             )}
 

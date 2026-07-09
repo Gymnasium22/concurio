@@ -8,7 +8,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getTelegramUser, isTelegramApp } from '@/lib/telegram';
+import { getPendingTelegramBind, getTelegramUser, isTelegramApp, setPendingTelegramBind } from '@/lib/telegram';
 import type { AppUser } from '@/types';
 import type { User } from '@supabase/supabase-js';
 
@@ -211,7 +211,7 @@ export function useAuth(): UseAuthReturn {
         throw new Error(data?.error || functionError?.message || 'Не удалось привязать Telegram');
       }
 
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { data: updatedUser, error: updateError } = await supabase.auth.updateUser({
         data: {
           telegram_id: tgUser.id,
           avatar_url: tgUser.photo_url ?? null,
@@ -221,6 +221,12 @@ export function useAuth(): UseAuthReturn {
 
       if (updateError) {
         throw updateError;
+      }
+
+      if (updatedUser?.user) {
+        setState(s => ({ ...s, user: toAppUser(updatedUser.user), isLoading: false, error: null }));
+      } else {
+        setState(s => ({ ...s, isLoading: false, error: null }));
       }
 
       return true;
@@ -237,7 +243,7 @@ export function useAuth(): UseAuthReturn {
   const unlinkTelegramFromCurrentAccount = useCallback(async () => {
     setState(s => ({ ...s, isLoading: true, error: null }));
 
-    const { error } = await supabase.auth.updateUser({
+    const { data: updatedUser, error } = await supabase.auth.updateUser({
       data: {
         telegram_id: null,
         avatar_url: null,
@@ -250,13 +256,19 @@ export function useAuth(): UseAuthReturn {
       return false;
     }
 
+    if (updatedUser?.user) {
+      setState(s => ({ ...s, user: toAppUser(updatedUser.user), isLoading: false, error: null }));
+    } else {
+      setState(s => ({ ...s, isLoading: false, error: null }));
+    }
+
     return true;
   }, []);
 
   const setEmailPasswordForCurrentAccount = useCallback(async (password: string) => {
     setState(s => ({ ...s, isLoading: true, error: null }));
 
-    const { error } = await supabase.auth.updateUser({
+    const { data: updatedUser, error } = await supabase.auth.updateUser({
       password,
       data: {
         auth_provider: 'email',
@@ -266,6 +278,12 @@ export function useAuth(): UseAuthReturn {
     if (error) {
       setState(s => ({ ...s, isLoading: false, error: error.message }));
       return false;
+    }
+
+    if (updatedUser?.user) {
+      setState(s => ({ ...s, user: toAppUser(updatedUser.user), isLoading: false, error: null }));
+    } else {
+      setState(s => ({ ...s, isLoading: false, error: null }));
     }
 
     return true;
@@ -291,6 +309,17 @@ export function useAuth(): UseAuthReturn {
       return () => clearTimeout(timer);
     }
   }, [state.user, state.isLoading, signInWithTelegram]);
+
+  useEffect(() => {
+    if (!isTelegramApp() || !state.user || state.isLoading) {
+      return;
+    }
+
+    if (getPendingTelegramBind()) {
+      setPendingTelegramBind(false);
+      void linkTelegramToCurrentAccount();
+    }
+  }, [state.user, state.isLoading, linkTelegramToCurrentAccount]);
 
   return {
     ...state,
