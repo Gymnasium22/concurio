@@ -18,6 +18,7 @@ import { Dashboard } from '@/pages/dashboard';
 import { ContestCreate } from '@/pages/contest-create';
 import { ContestEdit } from '@/pages/contest-edit';
 import { ContestDetailPage } from '@/pages/contest-detail-page';
+import { ProfilePage } from '@/pages/profile-page';
 
 // Инициализация React Query клиента
 const queryClient = new QueryClient({
@@ -65,6 +66,7 @@ function AppRouter() {
         <Route path="/create" element={<ContestCreate />} />
         <Route path="/contest/:id" element={<ContestDetailPage />} />
         <Route path="/contest/:id/edit" element={<ContestEdit />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppLayout>

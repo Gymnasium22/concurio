@@ -2,7 +2,7 @@
  * Toast — система уведомлений (хук + состояние)
  * Упрощённая версия shadcn/ui toast без Radix (для лёгкости)
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export interface Toast {
   id: string;
@@ -57,7 +57,7 @@ export function useToast(): ToastState & { toast: typeof toast; dismiss: typeof 
   const [state, setState] = useState<ToastState>({ toasts: [] });
 
   // Подписка на обновления
-  useState(() => {
+  useEffect(() => {
     const listener = (updatedToasts: Toast[]) => {
       setState({ toasts: updatedToasts });
     };
@@ -65,7 +65,7 @@ export function useToast(): ToastState & { toast: typeof toast; dismiss: typeof 
     return () => {
       toastListeners = toastListeners.filter(l => l !== listener);
     };
-  });
+  }, []);
 
   return {
     ...state,
