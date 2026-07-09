@@ -37,11 +37,19 @@ export function useFileUpload(): UseFileUploadReturn {
   const validateFiles = useCallback((files: File[]): { valid: File[]; errors: string[] } => {
     const valid: File[] = [];
     const errors: string[] = [];
-    const acceptedTypes = Object.keys(ACCEPTED_FILE_TYPES);
+    const acceptedTypes = new Set(Object.keys(ACCEPTED_FILE_TYPES));
+    const allowedExtensions = new Set(
+      Object.values(ACCEPTED_FILE_TYPES).flatMap(exts => exts)
+    );
 
     for (const file of files) {
-      if (!acceptedTypes.includes(file.type)) {
-        errors.push(`"${file.name}" — неподдерживаемый формат. Допускаются только PDF и DOCX.`);
+      const normalizedName = file.name.toLowerCase();
+      const hasAllowedExtension = Array.from(allowedExtensions).some(ext => normalizedName.endsWith(ext));
+      const hasAllowedMimeType = acceptedTypes.has(file.type);
+      const isAllowedFile = hasAllowedExtension || hasAllowedMimeType;
+
+      if (!isAllowedFile) {
+        errors.push(`"${file.name}" — неподдерживаемый формат. Допускаются PDF, DOC, DOCX, JPG, PNG.`);
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {

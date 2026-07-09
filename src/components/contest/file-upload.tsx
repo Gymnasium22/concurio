@@ -83,7 +83,7 @@ export function FileUpload({ contestId, onUploadSuccess }: FileUploadProps) {
           {isDragActive ? 'Отпустите файлы здесь...' : 'Нажмите или перетащите файлы'}
         </p>
         <p className="text-xs text-[rgb(var(--fg-muted))] text-center mt-1">
-          Только PDF и DOCX (до 10 МБ)
+          Поддерживаются PDF, DOC, DOCX, JPG, PNG (до 10 МБ)
         </p>
       </div>
 
