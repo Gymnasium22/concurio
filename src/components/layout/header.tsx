@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Plus, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { AccountSettings } from '@/components/layout/account-settings';
 import { useAppStore } from '@/stores/app-store';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +59,7 @@ export function Header() {
           {/* Правая часть */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <AccountSettings />
             <Link to="/create">
               <Button size="sm" className="gap-1.5">
                 <Plus className="h-4 w-4" />

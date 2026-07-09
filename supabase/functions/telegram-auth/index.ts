@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.0';
 
 interface TelegramAuthRequest {
   initData: string;
+  bindToUserId?: string;
 }
 
 interface TelegramUserPayload {
@@ -135,9 +136,41 @@ serve(async (req) => {
     username: telegramUser.username ?? null,
     display_name: displayName,
     avatar_url: telegramUser.photo_url ?? null,
+    auth_provider: 'telegram',
   };
 
   try {
+    if (body?.bindToUserId) {
+      const { data: targetUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(body.bindToUserId);
+
+      if (getUserError || !targetUser?.user) {
+        throw new Error(getUserError?.message || 'Target user not found');
+      }
+
+      const mergedMetadata = {
+        ...(targetUser.user.user_metadata ?? {}),
+        ...metadata,
+      };
+
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(targetUser.user.id, {
+        user_metadata: mergedMetadata,
+      });
+
+      if (updateError) throw updateError;
+
+      return jsonResponse({
+        success: true,
+        linked: true,
+        user: {
+          id: targetUser.user.id,
+          email: targetUser.user.email,
+          display_name: displayName,
+          telegram_id: telegramUser.id,
+          avatar_url: telegramUser.photo_url ?? undefined,
+        },
+      });
+    }
+
     const { data: existingUser, error: getUserError } = await supabaseAdmin.auth.admin.getUserByEmail(email);
 
     if (getUserError && getUserError.message !== 'User not found') {

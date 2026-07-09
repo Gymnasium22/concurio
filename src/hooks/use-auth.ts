@@ -19,9 +19,12 @@ interface AuthState {
 }
 
 interface UseAuthReturn extends AuthState {
-  signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
-  signInWithTelegram: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<boolean>;
+  signUpWithEmail: (email: string, password: string) => Promise<boolean>;
+  signInWithTelegram: () => Promise<boolean>;
+  linkTelegramToCurrentAccount: () => Promise<boolean>;
+  unlinkTelegramFromCurrentAccount: () => Promise<boolean>;
+  setEmailPasswordForCurrentAccount: (password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -29,15 +32,21 @@ interface UseAuthReturn extends AuthState {
  * Преобразовать Supabase User в AppUser
  */
 function toAppUser(user: User): AppUser {
+  const metadata = user.user_metadata ?? {};
+  const telegramId = metadata['telegram_id'] as number | undefined;
+  const authProvider = (metadata['auth_provider'] as AppUser['auth_provider'] | undefined)
+    || (telegramId ? 'telegram' : 'email');
+
   return {
     id: user.id,
     email: user.email ?? null,
-    display_name: user.user_metadata?.['display_name'] as string
-      || user.user_metadata?.['first_name'] as string
+    display_name: metadata['display_name'] as string
+      || metadata['first_name'] as string
       || user.email
       || 'Пользователь',
-    telegram_id: user.user_metadata?.['telegram_id'] as number | undefined,
-    avatar_url: user.user_metadata?.['avatar_url'] as string | undefined,
+    telegram_id: telegramId,
+    avatar_url: metadata['avatar_url'] as string | undefined,
+    auth_provider: authProvider,
   };
 }
 
@@ -87,7 +96,7 @@ export function useAuth(): UseAuthReturn {
     const tgUser = getTelegramUser();
     if (!tgUser) {
       setState(s => ({ ...s, error: 'Telegram пользователь не найден' }));
-      return;
+      return false;
     }
 
     setState(s => ({ ...s, isLoading: true, error: null }));
@@ -117,13 +126,17 @@ export function useAuth(): UseAuthReturn {
 
       if (signInError) {
         setState(s => ({ ...s, isLoading: false, error: signInError.message }));
+        return false;
       }
+
+      return true;
     } catch (err) {
       setState(s => ({
         ...s,
         isLoading: false,
         error: err instanceof Error ? err.message : 'Ошибка авторизации',
       }));
+      return false;
     }
   }, []);
 
@@ -135,7 +148,10 @@ export function useAuth(): UseAuthReturn {
 
     if (error) {
       setState(s => ({ ...s, isLoading: false, error: error.message }));
+      return false;
     }
+
+    return true;
   }, []);
 
   /** Регистрация через Email */
@@ -146,18 +162,119 @@ export function useAuth(): UseAuthReturn {
       email,
       password,
       options: {
-        data: { display_name: email.split('@')[0] },
+        data: {
+          display_name: email.split('@')[0],
+          auth_provider: 'email',
+        },
       },
     });
 
     if (error) {
       setState(s => ({ ...s, isLoading: false, error: error.message }));
+      return false;
     }
+
+    return true;
+  }, []);
+
+  const linkTelegramToCurrentAccount = useCallback(async () => {
+    const currentUser = state.user;
+    if (!currentUser?.id) {
+      setState(s => ({ ...s, error: 'Сначала войдите в аккаунт' }));
+      return false;
+    }
+
+    const tgUser = getTelegramUser();
+    if (!tgUser) {
+      setState(s => ({ ...s, error: 'Telegram пользователь не найден' }));
+      return false;
+    }
+
+    setState(s => ({ ...s, isLoading: true, error: null }));
+
+    try {
+      const tg = window.Telegram?.WebApp;
+      const initData = tg?.initData?.trim();
+
+      if (!initData) {
+        throw new Error('Телеграм Mini App не передал initData');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke<{
+        success: boolean;
+        error?: string;
+      }>('telegram-auth', {
+        body: { initData, bindToUserId: currentUser.id },
+      });
+
+      if (functionError || !data?.success) {
+        throw new Error(data?.error || functionError?.message || 'Не удалось привязать Telegram');
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          telegram_id: tgUser.id,
+          avatar_url: tgUser.photo_url ?? null,
+          auth_provider: 'telegram',
+        },
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return true;
+    } catch (err) {
+      setState(s => ({
+        ...s,
+        isLoading: false,
+        error: err instanceof Error ? err.message : 'Не удалось привязать Telegram',
+      }));
+      return false;
+    }
+  }, [state.user]);
+
+  const unlinkTelegramFromCurrentAccount = useCallback(async () => {
+    setState(s => ({ ...s, isLoading: true, error: null }));
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        telegram_id: null,
+        avatar_url: null,
+        auth_provider: 'email',
+      },
+    });
+
+    if (error) {
+      setState(s => ({ ...s, isLoading: false, error: error.message }));
+      return false;
+    }
+
+    return true;
+  }, []);
+
+  const setEmailPasswordForCurrentAccount = useCallback(async (password: string) => {
+    setState(s => ({ ...s, isLoading: true, error: null }));
+
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: {
+        auth_provider: 'email',
+      },
+    });
+
+    if (error) {
+      setState(s => ({ ...s, isLoading: false, error: error.message }));
+      return false;
+    }
+
+    return true;
   }, []);
 
   /** Выход */
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
+    useAuth.autoLoginAttempted = true;
     setState({ user: null, isLoading: false, error: null });
   }, []);
 
@@ -180,6 +297,9 @@ export function useAuth(): UseAuthReturn {
     signInWithEmail,
     signUpWithEmail,
     signInWithTelegram,
+    linkTelegramToCurrentAccount,
+    unlinkTelegramFromCurrentAccount,
+    setEmailPasswordForCurrentAccount,
     signOut,
   };
 }

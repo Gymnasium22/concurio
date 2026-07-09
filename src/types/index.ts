@@ -121,6 +121,7 @@ export interface AppUser {
   telegram_id?: number;
   display_name: string;
   avatar_url?: string;
+  auth_provider?: 'email' | 'telegram';
 }
 
 // ========================
