@@ -3,7 +3,7 @@
  */
 import { useAttachments } from '@/hooks/use-contests';
 import { useFileUpload } from '@/hooks/use-file-upload';
-import { getFileUrl, getSignedFileUrl } from '@/lib/supabase';
+import { getSignedFileUrl } from '@/lib/supabase';
 import { formatFileSize, getFileIcon } from '@/lib/utils';
 import { FileText, File as FileIcon, Trash2, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';

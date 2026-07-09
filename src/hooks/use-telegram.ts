@@ -3,7 +3,7 @@
  *
  * MainButton, BackButton, тема, haptic
  */
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { getTelegramWebApp, isTelegramApp as checkIsTelegramApp } from '@/lib/telegram';
 
 /**

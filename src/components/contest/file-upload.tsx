@@ -3,10 +3,9 @@
  */
 import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, FileType as FileTypeIcon, X } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { ACCEPTED_FILE_TYPES } from '@/lib/constants';
 import { cn } from '@/lib/utils';

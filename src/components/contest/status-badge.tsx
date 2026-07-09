@@ -1,7 +1,6 @@
 /**
  * StatusBadge — бейдж статуса конкурса
  */
-import { Badge } from '@/components/ui/badge';
 import { STATUS_LABELS, STATUS_COLORS, STATUS_ICONS } from '@/lib/constants';
 import * as LucideIcons from 'lucide-react';
 import type { ContestStatus } from '@/types';

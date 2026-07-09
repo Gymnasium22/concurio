@@ -11,11 +11,10 @@ import { PdfPreview } from '@/components/contest/pdf-preview';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, CheckCircle2, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { formatDate, getTimeLeft, cn } from '@/lib/utils';
 import { STATUS_ORDER, STATUS_LABELS, STATUS_DEFAULT_PROGRESS } from '@/lib/constants';
 import type { Contest, ContestStatus, Attachment } from '@/types';
-import { motion } from 'framer-motion';
 
 interface ContestDetailProps {
   contest: Contest;

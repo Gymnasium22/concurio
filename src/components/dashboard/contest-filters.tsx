@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { ContestStatus } from '@/types';
 
 export function ContestFilters() {
   const {

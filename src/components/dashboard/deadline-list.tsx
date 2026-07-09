@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Trophy, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getDeadlineUrgency, getUrgencyColor, getUrgencyBgColor, formatDate, getTimeLeft } from '@/lib/utils';
+import { getDeadlineUrgency, getUrgencyColor, getUrgencyBgColor, getTimeLeft } from '@/lib/utils';
 import { DASHBOARD_DEADLINE_COUNT } from '@/lib/constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -91,7 +91,7 @@ export function DeadlineList() {
                       {contest.title}
                     </h4>
                     <p className="text-xs text-[rgb(var(--fg-secondary))] truncate mt-0.5 flex items-center gap-1.5">
-                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${bgClass.split(' ')[0].replace('/10', '')}`} />
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full ${(bgClass.split(' ')[0] ?? '').replace('/10', '')}`} />
                       {getTimeLeft(contest.due_date)}
                     </p>
                   </div>

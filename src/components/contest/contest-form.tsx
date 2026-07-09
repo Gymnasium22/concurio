@@ -1,7 +1,7 @@
 /**
  * ContestForm — форма создания/редактирования конкурса
  */
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateContest, useUpdateContest } from '@/hooks/use-contests';
 import { useTelegramMainButton, useTelegramBackButton } from '@/hooks/use-telegram';
