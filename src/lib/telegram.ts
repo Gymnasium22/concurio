@@ -189,13 +189,9 @@ export function openTelegramBindingLink(): boolean {
   setPendingTelegramBind(true);
 
   const webAppLink = `https://t.me/${botUsername}/app?startapp=bind`;
-  const fallbackLink = `https://t.me/${botUsername}?start=bind`;
 
   if (typeof window !== 'undefined') {
-    const popup = window.open(webAppLink, '_blank', 'noopener,noreferrer');
-    if (!popup) {
-      window.location.href = fallbackLink;
-    }
+    window.open(webAppLink, '_blank', 'noopener,noreferrer');
   }
 
   return true;
