@@ -10,11 +10,54 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
 import type { Attachment } from '@/types';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface FileListProps {
   contestId: string;
   onPreviewClick?: (attachment: Attachment) => void;
+}
+
+function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const [thumbnailError, setThumbnailError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadThumb = async () => {
+      const isImage = attachment.file_type.startsWith('image/') || /\.(png|jpe?g)$/i.test(attachment.file_name);
+      if (!isImage) {
+        return;
+      }
+
+      try {
+        const signedUrl = await getSignedFileUrl(attachment.file_path, 3600);
+        if (isMounted && signedUrl) {
+          setThumbnailUrl(signedUrl);
+        }
+      } catch {
+        if (isMounted) {
+          setThumbnailError(true);
+        }
+      }
+    };
+
+    loadThumb();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [attachment.file_name, attachment.file_path, attachment.file_type]);
+
+  if (!thumbnailUrl || thumbnailError) {
+    return null;
+  }
+
+  return (
+    <div className="mr-3 h-12 w-12 overflow-hidden rounded-lg border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]">
+      <img src={thumbnailUrl} alt={attachment.file_name} className="h-full w-full object-cover" />
+    </div>
+  );
 }
 
 export function FileList({ contestId, onPreviewClick }: FileListProps) {
@@ -80,9 +123,13 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
             key={attachment.id}
             className="flex items-center gap-3 p-3 rounded-xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))] hover:border-[rgb(var(--border-strong))] transition-colors group"
           >
-            <div className={`p-2 rounded-lg shrink-0 ${isPdf ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-blue-50 text-blue-500 dark:bg-blue-900/30'}`}>
-              {isPdf ? <FileText className="h-5 w-5" /> : <FileIcon className="h-5 w-5" />}
-            </div>
+            {attachment.file_type.startsWith('image/') || /\.(png|jpe?g)$/i.test(attachment.file_name) ? (
+              <AttachmentThumbnail attachment={attachment} />
+            ) : (
+              <div className={`p-2 rounded-lg shrink-0 ${isPdf ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-blue-50 text-blue-500 dark:bg-blue-900/30'}`}>
+                {isPdf ? <FileText className="h-5 w-5" /> : <FileIcon className="h-5 w-5" />}
+              </div>
+            )}
             
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate" title={attachment.file_name}>

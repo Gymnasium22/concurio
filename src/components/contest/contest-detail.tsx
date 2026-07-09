@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/contest/status-badge';
 import { TelegramLinks } from '@/components/contest/telegram-links';
 import { FileList } from '@/components/contest/file-list';
 import { FileUpload } from '@/components/contest/file-upload';
-import { PdfPreview } from '@/components/contest/pdf-preview';
+import { FilePreview } from '@/components/contest/pdf-preview';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -157,7 +157,7 @@ export function ContestDetail({ contest }: ContestDetailProps) {
             </DialogTitle>
           </DialogHeader>
           <div className="pt-[60px] h-[80vh]">
-            {previewFile && <PdfPreview filePath={previewFile.file_path} />}
+            {previewFile && <FilePreview filePath={previewFile.file_path} fileName={previewFile.file_name} fileType={previewFile.file_type} />}
           </div>
         </DialogContent>
       </Dialog>

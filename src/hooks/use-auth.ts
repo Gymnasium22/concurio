@@ -92,41 +92,31 @@ export function useAuth(): UseAuthReturn {
 
     setState(s => ({ ...s, isLoading: true, error: null }));
 
-    // Генерируем email и пароль на основе Telegram ID
-    const email = `tg_${tgUser.id}@concurio.local`;
-    const password = `tg_secure_${tgUser.id}_concurio`;
-
     try {
-      // Пробуем войти
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const tg = window.Telegram?.WebApp;
+      const initData = tg?.initData?.trim();
+
+      if (!initData) {
+        throw new Error('Телеграм Mini App не передал initData');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke<{
+        success: boolean;
+        credentials?: { email: string; password: string };
+        error?: string;
+      }>('telegram-auth', {
+        body: { initData },
       });
 
+      if (functionError || !data?.success || !data.credentials) {
+        throw new Error(data?.error || functionError?.message || 'Ошибка авторизации через Telegram');
+      }
+
+      const { email, password } = data.credentials;
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
       if (signInError) {
-        // Если пользователь не существует — регистрируем
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              telegram_id: tgUser.id,
-              first_name: tgUser.first_name,
-              last_name: tgUser.last_name,
-              username: tgUser.username,
-              display_name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' '),
-              avatar_url: tgUser.photo_url,
-            },
-          },
-        });
-
-        if (signUpError) {
-          setState(s => ({ ...s, isLoading: false, error: signUpError.message }));
-          return;
-        }
-
-        // После регистрации автоматически входим
-        await supabase.auth.signInWithPassword({ email, password });
+        setState(s => ({ ...s, isLoading: false, error: signInError.message }));
       }
     } catch (err) {
       setState(s => ({

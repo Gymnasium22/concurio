@@ -1,5 +1,5 @@
 /**
- * PdfPreview — предпросмотр PDF файла (react-pdf)
+ * FilePreview — предпросмотр PDF и изображений
  */
 import { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -9,14 +9,21 @@ import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Loader2 } from 'lucide-reac
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Настройка worker для react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
-interface PdfPreviewProps {
+interface FilePreviewProps {
   filePath: string;
+  fileName?: string;
+  fileType?: string;
 }
 
-export function PdfPreview({ filePath }: PdfPreviewProps) {
+function isImageFile(fileType?: string, fileName?: string): boolean {
+  const isImageType = fileType?.startsWith('image/');
+  const lowerName = fileName?.toLowerCase() ?? '';
+  return isImageType || lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg');
+}
+
+export function FilePreview({ filePath, fileName, fileType }: FilePreviewProps) {
   const [url, setUrl] = useState<string | null>(null);
   const [numPages, setNumPages] = useState<number>();
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -32,17 +39,17 @@ export function PdfPreview({ filePath }: PdfPreviewProps) {
         } else {
           setError('Не удалось получить ссылку на файл');
         }
-      } catch (err) {
-        setError('Ошибка при загрузке документа');
+      } catch {
+        setError('Ошибка при загрузке файла');
       }
     };
     fetchUrl();
   }, [filePath]);
 
-  function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
+  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setPageNumber(1);
-  }
+  };
 
   if (error) {
     return <div className="p-4 text-center text-red-500">{error}</div>;
@@ -52,63 +59,43 @@ export function PdfPreview({ filePath }: PdfPreviewProps) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-[rgb(var(--fg-muted))]">
         <Loader2 className="h-8 w-8 animate-spin mb-4" />
-        <p>Загрузка документа...</p>
+        <p>Загрузка файла...</p>
+      </div>
+    );
+  }
+
+  if (isImageFile(fileType, fileName)) {
+    return (
+      <div className="flex items-center justify-center bg-[rgb(var(--bg-secondary))] p-4 min-h-[400px] max-h-[70vh] overflow-auto">
+        <img src={url} alt={fileName ?? 'Изображение'} className="max-w-full max-h-full object-contain rounded-xl shadow-md" />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col bg-[rgb(var(--bg-secondary))] rounded-xl overflow-hidden border border-[rgb(var(--border-default))]">
-      {/* Панель инструментов */}
       <div className="flex items-center justify-between p-2 bg-[rgb(var(--bg-card))] border-b border-[rgb(var(--border-default))]">
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            disabled={pageNumber <= 1}
-            onClick={() => setPageNumber(p => p - 1)}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pageNumber <= 1} onClick={() => setPageNumber(p => p - 1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium w-16 text-center">
-            {pageNumber} / {numPages || '?'}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            disabled={pageNumber >= (numPages || 1)}
-            onClick={() => setPageNumber(p => p + 1)}
-          >
+          <span className="text-sm font-medium w-16 text-center">{pageNumber} / {numPages || '?'}</span>
+          <Button variant="ghost" size="icon" className="h-8 w-8" disabled={pageNumber >= (numPages || 1)} onClick={() => setPageNumber(p => p + 1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setScale(s => Math.max(0.5, s - 0.25))}
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.max(0.5, s - 0.25))}>
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium w-12 text-center">
-            {Math.round(scale * 100)}%
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setScale(s => Math.min(2.5, s + 0.25))}
-          >
+          <span className="text-sm font-medium w-12 text-center">{Math.round(scale * 100)}%</span>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.min(2.5, s + 0.25))}>
             <ZoomIn className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Контейнер PDF */}
       <div className="relative flex-1 overflow-auto p-4 flex justify-center min-h-[400px] max-h-[70vh]">
         <Document
           file={url}
@@ -124,13 +111,7 @@ export function PdfPreview({ filePath }: PdfPreviewProps) {
             </div>
           }
         >
-          <Page 
-            pageNumber={pageNumber} 
-            scale={scale} 
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            className="shadow-md bg-white" 
-          />
+          <Page pageNumber={pageNumber} scale={scale} renderTextLayer={true} renderAnnotationLayer={true} className="shadow-md bg-white" />
         </Document>
       </div>
     </div>
