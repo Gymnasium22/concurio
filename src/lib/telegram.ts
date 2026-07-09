@@ -179,21 +179,26 @@ export function getPendingTelegramBind(): boolean {
 }
 
 export function openTelegramBindingLink(): boolean {
-  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  const rawBotUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'concurio_bot';
+  const botUsername = rawBotUsername.replace(/^@/, '').trim();
+
   if (!botUsername) {
     return false;
   }
 
   setPendingTelegramBind(true);
 
-  const deepLink = `tg://resolve?domain=${botUsername}&startapp=bind`;
-  const webLink = `https://t.me/${botUsername}?startapp=bind`;
+  const webAppLink = `https://t.me/${botUsername}/app?startapp=bind`;
+  const fallbackLink = `https://t.me/${botUsername}?start=bind`;
 
   if (typeof window !== 'undefined') {
-    window.location.href = deepLink;
+    window.location.href = webAppLink;
     window.setTimeout(() => {
-      window.open(webLink, '_blank', 'noopener,noreferrer');
-    }, 250);
+      if (window.location.href.includes('/app')) {
+        return;
+      }
+      window.location.href = fallbackLink;
+    }, 300);
   }
 
   return true;
