@@ -132,11 +132,38 @@ function applyTelegramTheme(tg: TelegramWebApp): void {
 }
 
 /**
- * Получить пользователя Telegram из initDataUnsafe
+ * Получить пользователя Telegram из initDataUnsafe или из initData
  */
 export function getTelegramUser() {
   const tg = getTelegramWebApp();
-  return tg?.initDataUnsafe?.user ?? null;
+  if (tg?.initDataUnsafe?.user) {
+    return tg.initDataUnsafe.user;
+  }
+
+  const initData = tg?.initData?.trim();
+  if (!initData) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(initData);
+    const rawUser = params.get('user');
+    if (!rawUser) {
+      return null;
+    }
+
+    const parsedUser = JSON.parse(decodeURIComponent(rawUser));
+    return {
+      id: Number(parsedUser.id),
+      first_name: parsedUser.first_name ?? '',
+      last_name: parsedUser.last_name ?? undefined,
+      username: parsedUser.username ?? undefined,
+      language_code: parsedUser.language_code ?? undefined,
+      photo_url: parsedUser.photo_url ?? undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
