@@ -54,11 +54,42 @@ function randomToken(): string {
     .join('');
 }
 
+/** Базовый URL приложения на проде (GitHub Pages) */
+export function getPublicAppBase(): string {
+  const env = (import.meta.env.VITE_PUBLIC_APP_URL as string | undefined)?.trim();
+  if (env) return env.replace(/\/?$/, '/');
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // На localhost шарим прод-ссылку, иначе получатель увидит 404
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'https://gymnasium22.github.io/concurio/';
+    }
+    const base = import.meta.env.BASE_URL || '/';
+    return `${window.location.origin}${base.replace(/\/?$/, '/')}`;
+  }
+
+  return 'https://gymnasium22.github.io/concurio/';
+}
+
+/** Прямая ссылка на SPA (/share/token) — работает после 404.html на GH Pages */
+export function buildShareAppUrl(token: string): string {
+  return `${getPublicAppBase()}share/${token}`;
+}
+
+/**
+ * Ссылка для отправки в мессенджеры:
+ * Edge Function отдаёт Open Graph превью и редиректит в приложение.
+ */
 export function buildShareUrl(token: string): string {
-  const base = import.meta.env.BASE_URL || '/';
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const path = `${base.replace(/\/?$/, '/')}share/${token}`;
-  return `${origin}${path}`;
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(
+    /\/$/,
+    ''
+  );
+  if (supabaseUrl) {
+    return `${supabaseUrl}/functions/v1/share-preview?t=${encodeURIComponent(token)}`;
+  }
+  return buildShareAppUrl(token);
 }
 
 export function useMyShareLinks() {

@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.public-share]
 verify_jwt = false
+
+[functions.share-preview]
+verify_jwt = false
