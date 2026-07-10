@@ -4,7 +4,7 @@
 import { useAttachments } from '@/hooks/use-contests';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { getSignedFileUrl } from '@/lib/supabase';
-import { formatFileSize, getFileIcon } from '@/lib/utils';
+import { formatFileSize } from '@/lib/utils';
 import { FileText, File as FileIcon, Trash2, Download, Eye, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -142,7 +142,6 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
   return (
     <div className="space-y-2">
       {attachments.map((attachment) => {
-        const iconType = getFileIcon(attachment.file_name);
         const isPdf = isPdfAttachment(attachment);
         const isImage = isImageAttachment(attachment);
         const canPreview = isPdf || isImage;

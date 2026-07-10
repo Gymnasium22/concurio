@@ -44,10 +44,14 @@ export function ProfilePage() {
     if (!isInTelegram) {
       setBusy(true);
       setMessage('Открываю Telegram Mini App для привязки…');
-      const opened = openTelegramBindingLink();
+      const result = await openTelegramBindingLink(user.id);
       setBusy(false);
-      if (!opened) {
-        setMessage('Не удалось открыть Telegram Mini App. Проверьте настройки бота.');
+      if (result.ok) {
+        setMessage(
+          'Откройте Telegram Mini App и подтвердите привязку. Затем обновите эту страницу.'
+        );
+      } else {
+        setMessage(result.error || 'Не удалось открыть Telegram Mini App.');
       }
       return;
     }
