@@ -124,9 +124,9 @@ export function Dashboard() {
 
         {view === 'list' &&
           (isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-32 rounded-2xl" />
+                <Skeleton key={i} className="min-h-[200px] sm:min-h-[212px] h-full rounded-2xl" />
               ))}
             </div>
           ) : !contests || contests.length === 0 ? (
@@ -146,7 +146,10 @@ export function Dashboard() {
               </Link>
             </div>
           ) : (
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4" layout>
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch auto-rows-fr"
+              layout
+            >
               <AnimatePresence mode="popLayout">
                 {contests.map((contest, index) => (
                   <ContestCard key={contest.id} contest={contest} index={index} />

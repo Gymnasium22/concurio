@@ -12,6 +12,7 @@ export function ChecklistPanel({ contestId }: { contestId: string }) {
 
   const done = items?.filter((i) => i.is_done).length ?? 0;
   const total = items?.length ?? 0;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,22 +23,37 @@ export function ChecklistPanel({ contestId }: { contestId: string }) {
 
   return (
     <div className="glass p-5 sm:p-6 rounded-2xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-[rgb(var(--fg-secondary))]">Чек-лист</h3>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-medium text-[rgb(var(--fg-secondary))]">
+            Чек-лист
+          </h3>
+          {total > 0 && (
+            <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">
+              Прогресс задачи = {pct}% ({done} из {total})
+            </p>
+          )}
+        </div>
         {total > 0 && (
-          <span className="text-xs font-medium text-[rgb(var(--fg-muted))]">
-            {done}/{total}
+          <span className="text-sm font-bold tabular-nums text-accent-500 shrink-0">
+            {pct}%
           </span>
         )}
       </div>
 
       {total > 0 && (
-        <div className="h-1.5 rounded-full bg-[rgb(var(--bg-secondary))] overflow-hidden">
+        <div className="h-2 rounded-full bg-[rgb(var(--bg-secondary))] overflow-hidden">
           <div
-            className="h-full bg-accent-500 transition-all"
-            style={{ width: `${Math.round((done / total) * 100)}%` }}
+            className="h-full bg-accent-500 transition-all duration-300 rounded-full"
+            style={{ width: `${pct}%` }}
           />
         </div>
+      )}
+
+      {total === 0 && !isLoading && (
+        <p className="text-xs text-[rgb(var(--fg-muted))]">
+          Добавьте пункты — прогресс задачи будет считаться автоматически.
+        </p>
       )}
 
       {isLoading ? (
@@ -51,7 +67,7 @@ export function ChecklistPanel({ contestId }: { contestId: string }) {
             >
               <button
                 type="button"
-                className="shrink-0 text-accent-500"
+                className="shrink-0 text-accent-500 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center -ml-1 touch-manipulation"
                 onClick={() =>
                   toggleItem.mutate({ id: item.id, is_done: !item.is_done })
                 }
@@ -72,8 +88,9 @@ export function ChecklistPanel({ contestId }: { contestId: string }) {
               </span>
               <button
                 type="button"
-                className="opacity-0 group-hover:opacity-100 text-red-500 p-1"
+                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-red-500 p-2 touch-manipulation"
                 onClick={() => removeItem.mutate(item.id)}
+                aria-label="Удалить пункт"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -89,9 +106,14 @@ export function ChecklistPanel({ contestId }: { contestId: string }) {
           onChange={(e) => setTitle(e.target.value)}
           className="h-10"
         />
-        <Button type="submit" size="sm" className="h-10 gap-1" disabled={addItem.isPending}>
+        <Button
+          type="submit"
+          size="sm"
+          className="h-10 gap-1 shrink-0"
+          disabled={addItem.isPending}
+        >
           <Plus className="h-4 w-4" />
-          Добавить
+          <span className="hidden sm:inline">Добавить</span>
         </Button>
       </form>
     </div>

@@ -120,6 +120,14 @@ export const PRIORITY_COLORS: Record<TaskPriority, { text: string; bg: string; d
   },
 };
 
+/** Цвет полоски приоритета слева на карточке (solid) */
+export const PRIORITY_BAR: Record<TaskPriority, string> = {
+  low: 'bg-slate-400 dark:bg-slate-500',
+  medium: 'bg-blue-500',
+  high: 'bg-amber-500',
+  urgent: 'bg-red-500',
+};
+
 export const PRIORITY_ORDER: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 
 export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {

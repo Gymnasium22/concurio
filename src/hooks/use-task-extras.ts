@@ -1,10 +1,16 @@
 /**
  * Чек-листы, комментарии, timeline
+ * Чек-лист автоматически обновляет progress задачи
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { QUERY_KEYS } from '@/lib/constants';
-import type { ActivityEvent, ChecklistItem, TaskComment } from '@/types';
+import type {
+  ActivityEvent,
+  ChecklistItem,
+  ContestStatus,
+  TaskComment,
+} from '@/types';
 
 export async function logActivity(
   contestId: string,
@@ -12,8 +18,9 @@ export async function logActivity(
   details: Record<string, unknown> = {}
 ) {
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) return;
 
   await supabase.from('activity_log').insert({
@@ -22,6 +29,66 @@ export async function logActivity(
     action,
     details,
   });
+}
+
+/**
+ * Прогресс задачи = доля выполненных пунктов чек-листа.
+ * Если пунктов нет — progress не трогаем (ручной / статусный).
+ */
+export async function syncProgressFromChecklist(
+  contestId: string
+): Promise<{ progress: number; status?: ContestStatus } | null> {
+  const { data: items, error } = await supabase
+    .from('checklist_items')
+    .select('is_done')
+    .eq('contest_id', contestId);
+
+  if (error) throw new Error(error.message);
+  if (!items || items.length === 0) {
+    return null;
+  }
+
+  const done = items.filter((i) => i.is_done).length;
+  const progress = Math.round((done / items.length) * 100);
+
+  const { data: contest } = await supabase
+    .from('contests')
+    .select('status')
+    .eq('id', contestId)
+    .single();
+
+  let status: ContestStatus | undefined;
+  const current = (contest?.status as ContestStatus) || 'todo';
+
+  if (current !== 'cancelled') {
+    if (progress >= 100) {
+      status = 'done';
+    } else if (progress > 0 && (current === 'todo' || current === 'done')) {
+      status = 'in_progress';
+    } else if (progress === 0 && current === 'done') {
+      status = 'in_progress';
+    }
+  }
+
+  const updates: { progress: number; status?: ContestStatus } = { progress };
+  if (status) updates.status = status;
+
+  const { error: updError } = await supabase
+    .from('contests')
+    .update(updates)
+    .eq('id', contestId);
+
+  if (updError) throw new Error(updError.message);
+
+  await logActivity(contestId, 'progress_change', {
+    progress,
+    source: 'checklist',
+    done,
+    total: items.length,
+    status: status ?? current,
+  });
+
+  return { progress, status };
 }
 
 // ---------- Checklist ----------
@@ -45,16 +112,26 @@ export function useChecklist(contestId: string | undefined) {
 
 export function useChecklistMutations(contestId: string) {
   const qc = useQueryClient();
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: QUERY_KEYS.checklist(contestId) });
     qc.invalidateQueries({ queryKey: QUERY_KEYS.activity(contestId) });
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.contest(contestId) });
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.contests });
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.stats });
+  };
+
+  const afterChecklistChange = async () => {
+    await syncProgressFromChecklist(contestId);
+    invalidate();
   };
 
   const addItem = useMutation({
     mutationFn: async (title: string) => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error('Не авторизован');
 
       const { data: existing } = await supabase
@@ -78,6 +155,7 @@ export function useChecklistMutations(contestId: string) {
         .single();
       if (error) throw new Error(error.message);
       await logActivity(contestId, 'checklist_add', { title: title.trim() });
+      await syncProgressFromChecklist(contestId);
       return data as ChecklistItem;
     },
     onSuccess: invalidate,
@@ -93,6 +171,7 @@ export function useChecklistMutations(contestId: string) {
       await logActivity(contestId, is_done ? 'checklist_done' : 'checklist_undone', {
         item_id: id,
       });
+      await syncProgressFromChecklist(contestId);
     },
     onSuccess: invalidate,
   });
@@ -102,11 +181,12 @@ export function useChecklistMutations(contestId: string) {
       const { error } = await supabase.from('checklist_items').delete().eq('id', id);
       if (error) throw new Error(error.message);
       await logActivity(contestId, 'checklist_remove', { item_id: id });
+      await syncProgressFromChecklist(contestId);
     },
     onSuccess: invalidate,
   });
 
-  return { addItem, toggleItem, removeItem };
+  return { addItem, toggleItem, removeItem, afterChecklistChange };
 }
 
 // ---------- Comments ----------
