@@ -4,7 +4,11 @@
  * MainButton, BackButton, тема, haptic
  */
 import { useEffect, useRef } from 'react';
-import { getTelegramWebApp, isTelegramApp as checkIsTelegramApp } from '@/lib/telegram';
+import {
+  getTelegramWebApp,
+  isTelegramApp as checkIsTelegramApp,
+  setTelegramMainButtonOpen,
+} from '@/lib/telegram';
 
 /**
  * Управление Telegram MainButton
@@ -27,8 +31,8 @@ export function useTelegramMainButton(
     if (!tg) return;
 
     const handler = () => callbackRef.current();
+    const visible = options?.visible !== false;
 
-    // Настраиваем кнопку
     tg.MainButton.setText(text);
 
     if (options?.disabled) {
@@ -43,10 +47,12 @@ export function useTelegramMainButton(
       tg.MainButton.hideProgress();
     }
 
-    if (options?.visible !== false) {
+    if (visible) {
       tg.MainButton.show();
+      setTelegramMainButtonOpen(true);
     } else {
       tg.MainButton.hide();
+      setTelegramMainButtonOpen(false);
     }
 
     tg.MainButton.onClick(handler);
@@ -54,6 +60,7 @@ export function useTelegramMainButton(
     return () => {
       tg.MainButton.offClick(handler);
       tg.MainButton.hide();
+      setTelegramMainButtonOpen(false);
     };
   }, [text, options?.disabled, options?.loading, options?.visible]);
 }

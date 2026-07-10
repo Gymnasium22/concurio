@@ -1,30 +1,43 @@
 /**
  * Concurio — Core Type Definitions
- * Все TypeScript типы для приложения
+ * Трекер задач и конкурсов
  */
 
 // ========================
-// Contest (Конкурс/Задание)
+// Task / Contest
 // ========================
 
-/** Возможные статусы конкурса */
+/** Возможные статусы */
 export type ContestStatus = 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
 
-/** Конкурс — основная сущность */
+/** Тип сущности: конкурс или обычная задача */
+export type TaskType = 'contest' | 'task' | 'personal' | 'reminder';
+
+/** Приоритет */
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+/** Задача / конкурс — основная сущность */
 export interface Contest {
   id: string;
   user_id: string;
   title: string;
   description: string | null;
-  due_date: string | null; // ISO 8601 timestamp
+  due_date: string | null;
   status: ContestStatus;
-  progress: number; // 0-100
+  progress: number;
   telegram_message_links: string[];
+  task_type: TaskType;
+  priority: TaskPriority;
+  tags: string[];
+  color: string | null;
   created_at: string;
   updated_at: string;
 }
 
-/** Данные для создания конкурса */
+/** Алиас для ясности в UI */
+export type Task = Contest;
+
+/** Данные для создания */
 export interface ContestInsert {
   title: string;
   description?: string | null;
@@ -32,9 +45,13 @@ export interface ContestInsert {
   status?: ContestStatus;
   progress?: number;
   telegram_message_links?: string[];
+  task_type?: TaskType;
+  priority?: TaskPriority;
+  tags?: string[];
+  color?: string | null;
 }
 
-/** Данные для обновления конкурса */
+/** Данные для обновления */
 export interface ContestUpdate {
   title?: string;
   description?: string | null;
@@ -42,27 +59,32 @@ export interface ContestUpdate {
   status?: ContestStatus;
   progress?: number;
   telegram_message_links?: string[];
+  task_type?: TaskType;
+  priority?: TaskPriority;
+  tags?: string[];
+  color?: string | null;
 }
 
 // ========================
-// Attachment (Вложение)
+// Attachment
 // ========================
 
-/** Тип файла */
-export type FileType = 'application/pdf' | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export type FileType =
+  | 'application/pdf'
+  | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  | 'image/jpeg'
+  | 'image/png';
 
-/** Вложенный файл */
 export interface Attachment {
   id: string;
   contest_id: string;
   file_name: string;
-  file_path: string; // Путь в Supabase Storage
+  file_path: string;
   file_type: string;
   file_size: number | null;
   created_at: string;
 }
 
-/** Данные для создания вложения */
 export interface AttachmentInsert {
   contest_id: string;
   file_name: string;
@@ -75,7 +97,6 @@ export interface AttachmentInsert {
 // Dashboard & Statistics
 // ========================
 
-/** Статистика для дашборда */
 export interface DashboardStats {
   total: number;
   completed: number;
@@ -83,20 +104,22 @@ export interface DashboardStats {
   inProgress: number;
   completedThisWeek: number;
   upcomingDeadlines: number;
+  contests: number;
+  tasks: number;
 }
 
-/** Цвет индикации дедлайна */
 export type DeadlineUrgency = 'overdue' | 'urgent' | 'normal' | 'safe';
 
 // ========================
 // Filters & Sorting
 // ========================
 
-/** Фильтры для списка конкурсов */
 export interface ContestFilters {
   status: ContestStatus | 'all';
+  taskType: TaskType | 'all';
+  priority: TaskPriority | 'all';
   search: string;
-  sortBy: 'due_date' | 'created_at' | 'title';
+  sortBy: 'due_date' | 'created_at' | 'title' | 'priority';
   sortOrder: 'asc' | 'desc';
 }
 
@@ -104,7 +127,6 @@ export interface ContestFilters {
 // Auth
 // ========================
 
-/** Telegram-пользователь (из initDataUnsafe) */
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -114,9 +136,8 @@ export interface TelegramUser {
   photo_url?: string;
 }
 
-/** Данные текущего пользователя */
 export interface AppUser {
-  id: string; // Supabase auth user ID
+  id: string;
   email: string | null;
   telegram_id?: number;
   display_name: string;
@@ -128,7 +149,6 @@ export interface AppUser {
 // Telegram Mini App
 // ========================
 
-/** Тема Telegram (цвета) */
 export interface TelegramTheme {
   bg_color?: string;
   text_color?: string;
@@ -144,3 +164,37 @@ export interface TelegramTheme {
 // ========================
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+
+// ========================
+// Checklist / Comments / Activity
+// ========================
+
+export interface ChecklistItem {
+  id: string;
+  contest_id: string;
+  user_id: string;
+  title: string;
+  is_done: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskComment {
+  id: string;
+  contest_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+}
+
+export interface ActivityEvent {
+  id: string;
+  contest_id: string;
+  user_id: string;
+  action: string;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export type ViewMode = 'list' | 'kanban' | 'calendar';

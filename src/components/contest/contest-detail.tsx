@@ -3,17 +3,28 @@
  */
 import { useState } from 'react';
 import { useUpdateContestStatus } from '@/hooks/use-contests';
+import { logActivity } from '@/hooks/use-task-extras';
 import { StatusBadge } from '@/components/contest/status-badge';
 import { TelegramLinks } from '@/components/contest/telegram-links';
 import { FileList } from '@/components/contest/file-list';
 import { FileUpload } from '@/components/contest/file-upload';
 import { FilePreview } from '@/components/contest/pdf-preview';
+import { ChecklistPanel } from '@/components/task/checklist-panel';
+import { CommentsTimeline } from '@/components/task/comments-timeline';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Tag } from 'lucide-react';
 import { formatDate, getTimeLeft, cn } from '@/lib/utils';
-import { STATUS_ORDER, STATUS_LABELS, STATUS_DEFAULT_PROGRESS } from '@/lib/constants';
+import {
+  STATUS_ORDER,
+  STATUS_LABELS,
+  STATUS_DEFAULT_PROGRESS,
+  TASK_TYPE_LABELS,
+  TASK_TYPE_COLORS,
+  PRIORITY_LABELS,
+  PRIORITY_COLORS,
+} from '@/lib/constants';
 import type { Contest, ContestStatus, Attachment } from '@/types';
 
 interface ContestDetailProps {
@@ -24,15 +35,16 @@ export function ContestDetail({ contest }: ContestDetailProps) {
   const updateStatusMutation = useUpdateContestStatus();
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
 
-  // Обработчик изменения статуса (степпер)
   const handleStatusChange = async (newStatus: ContestStatus) => {
     if (contest.status === newStatus) return;
-    
-    // Обновляем статус и выставляем дефолтный прогресс для этого статуса
     await updateStatusMutation.mutateAsync({
       id: contest.id,
       status: newStatus,
       progress: STATUS_DEFAULT_PROGRESS[newStatus],
+    });
+    await logActivity(contest.id, 'status_change', {
+      status: newStatus,
+      from: contest.status,
     });
   };
 
@@ -41,8 +53,35 @@ export function ContestDetail({ contest }: ContestDetailProps) {
       {/* Шапка: Статус и Дедлайн */}
       <div className="glass p-5 sm:p-6 rounded-2xl flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <StatusBadge status={contest.status} className="px-3 py-1 text-sm" />
-          
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={contest.status} className="px-3 py-1 text-sm" />
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border',
+                TASK_TYPE_COLORS[contest.task_type]?.text,
+                TASK_TYPE_COLORS[contest.task_type]?.bg,
+                TASK_TYPE_COLORS[contest.task_type]?.border
+              )}
+            >
+              {TASK_TYPE_LABELS[contest.task_type] ?? 'Задача'}
+            </span>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+                PRIORITY_COLORS[contest.priority]?.text,
+                PRIORITY_COLORS[contest.priority]?.bg
+              )}
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  PRIORITY_COLORS[contest.priority]?.dot
+                )}
+              />
+              {PRIORITY_LABELS[contest.priority] ?? 'Средний'}
+            </span>
+          </div>
+
           {contest.due_date && (
             <div className="flex items-center gap-4 text-sm font-medium text-[rgb(var(--fg-secondary))]">
               <div className="flex items-center gap-1.5">
@@ -56,6 +95,20 @@ export function ContestDetail({ contest }: ContestDetailProps) {
             </div>
           )}
         </div>
+
+        {contest.tags?.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Tag className="h-3.5 w-3.5 text-[rgb(var(--fg-muted))]" />
+            {contest.tags.map((tag) => (
+              <span
+                key={tag}
+                className="text-xs px-2 py-0.5 rounded-md bg-[rgb(var(--bg-secondary))] text-[rgb(var(--fg-secondary))]"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Степпер статусов */}
         <div className="mt-2 relative">
@@ -102,7 +155,7 @@ export function ContestDetail({ contest }: ContestDetailProps) {
         {/* Отменён (если применимо) */}
         {contest.status === 'cancelled' && (
           <div className="mt-2 p-3 rounded-lg bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 text-sm font-medium text-center">
-            Конкурс отменён. Вы можете вернуть его в работу, выбрав другой статус.
+            Задача отменена. Можно вернуть её в работу, выбрав другой статус.
             <div className="mt-2">
               <Button size="sm" variant="outline" onClick={() => handleStatusChange('todo')} className="bg-white dark:bg-black">
                 Вернуть в работу
@@ -134,6 +187,9 @@ export function ContestDetail({ contest }: ContestDetailProps) {
         </p>
       </div>
 
+      {/* Чек-лист */}
+      <ChecklistPanel contestId={contest.id} />
+
       {/* Ссылки */}
       {contest.telegram_message_links && contest.telegram_message_links.length > 0 && (
         <TelegramLinks links={contest.telegram_message_links} />
@@ -148,16 +204,25 @@ export function ContestDetail({ contest }: ContestDetailProps) {
         </div>
       </div>
 
-      {/* Модалка превью PDF */}
+      {/* Комментарии и timeline */}
+      <CommentsTimeline contestId={contest.id} />
+
+      {/* Модалка превью PDF / изображений — без скачивания */}
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
-        <DialogContent className="max-w-4xl w-[95vw] p-0 overflow-hidden bg-[rgb(var(--bg-secondary))] border-none">
+        <DialogContent className="max-w-5xl w-[96vw] p-0 overflow-hidden bg-[rgb(var(--bg-secondary))] border-none">
           <DialogHeader className="p-4 bg-[rgb(var(--bg-card))] border-b absolute top-0 left-0 right-0 z-10 m-0">
             <DialogTitle className="truncate pr-8 text-base">
               {previewFile?.file_name}
             </DialogTitle>
           </DialogHeader>
-          <div className="pt-[60px] h-[80vh]">
-            {previewFile && <FilePreview filePath={previewFile.file_path} fileName={previewFile.file_name} fileType={previewFile.file_type} />}
+          <div className="pt-[60px] h-[85vh]">
+            {previewFile && (
+              <FilePreview
+                filePath={previewFile.file_path}
+                fileName={previewFile.file_name}
+                fileType={previewFile.file_type}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

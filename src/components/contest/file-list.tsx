@@ -1,11 +1,11 @@
 /**
- * FileList — список прикреплённых файлов
+ * FileList — список вложений с превью изображений и PDF прямо в трекере
  */
 import { useAttachments } from '@/hooks/use-contests';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { getSignedFileUrl } from '@/lib/supabase';
 import { formatFileSize, getFileIcon } from '@/lib/utils';
-import { FileText, File as FileIcon, Trash2, Download, Eye } from 'lucide-react';
+import { FileText, File as FileIcon, Trash2, Download, Eye, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,6 +17,20 @@ interface FileListProps {
   onPreviewClick?: (attachment: Attachment) => void;
 }
 
+function isImageAttachment(attachment: Attachment): boolean {
+  return (
+    attachment.file_type.startsWith('image/') ||
+    /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(attachment.file_name)
+  );
+}
+
+function isPdfAttachment(attachment: Attachment): boolean {
+  return (
+    attachment.file_type === 'application/pdf' ||
+    attachment.file_name.toLowerCase().endsWith('.pdf')
+  );
+}
+
 function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [thumbnailError, setThumbnailError] = useState(false);
@@ -25,10 +39,7 @@ function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
     let isMounted = true;
 
     const loadThumb = async () => {
-      const isImage = attachment.file_type.startsWith('image/') || /\.(png|jpe?g)$/i.test(attachment.file_name);
-      if (!isImage) {
-        return;
-      }
+      if (!isImageAttachment(attachment)) return;
 
       try {
         const signedUrl = await getSignedFileUrl(attachment.file_path, 3600);
@@ -36,26 +47,31 @@ function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
           setThumbnailUrl(signedUrl);
         }
       } catch {
-        if (isMounted) {
-          setThumbnailError(true);
-        }
+        if (isMounted) setThumbnailError(true);
       }
     };
 
     loadThumb();
-
     return () => {
       isMounted = false;
     };
   }, [attachment.file_name, attachment.file_path, attachment.file_type]);
 
   if (!thumbnailUrl || thumbnailError) {
-    return null;
+    return (
+      <div className="mr-3 h-12 w-12 rounded-lg border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))] flex items-center justify-center text-sky-500">
+        <ImageIcon className="h-5 w-5" />
+      </div>
+    );
   }
 
   return (
     <div className="mr-3 h-12 w-12 overflow-hidden rounded-lg border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]">
-      <img src={thumbnailUrl} alt={attachment.file_name} className="h-full w-full object-cover" />
+      <img
+        src={thumbnailUrl}
+        alt={attachment.file_name}
+        className="h-full w-full object-cover"
+      />
     </div>
   );
 }
@@ -72,7 +88,7 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
     try {
       await removeAttachment(attachment);
       toast({ title: 'Файл удалён', variant: 'success' });
-    } catch (error) {
+    } catch {
       toast({ title: 'Ошибка при удалении', variant: 'error' });
     } finally {
       setDeletingId(null);
@@ -83,23 +99,34 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
     try {
       const url = await getSignedFileUrl(attachment.file_path);
       if (!url) throw new Error('Не удалось получить ссылку');
-      
-      // Создаём временную ссылку и кликаем по ней
+
       const a = document.createElement('a');
       a.href = url;
       a.download = attachment.file_name;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-    } catch (error) {
+    } catch {
       toast({ title: 'Ошибка скачивания', variant: 'error' });
     }
+  };
+
+  const handleOpen = (attachment: Attachment) => {
+    if (onPreviewClick && (isImageAttachment(attachment) || isPdfAttachment(attachment))) {
+      onPreviewClick(attachment);
+      return;
+    }
+    void handleDownload(attachment);
   };
 
   if (isLoading) {
     return (
       <div className="space-y-2">
-        {[1, 2].map(i => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+        {[1, 2].map((i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-xl" />
+        ))}
       </div>
     );
   }
@@ -114,40 +141,67 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
 
   return (
     <div className="space-y-2">
-      {attachments.map(attachment => {
+      {attachments.map((attachment) => {
         const iconType = getFileIcon(attachment.file_name);
-        const isPdf = iconType === 'pdf';
-        
+        const isPdf = isPdfAttachment(attachment);
+        const isImage = isImageAttachment(attachment);
+        const canPreview = isPdf || isImage;
+
         return (
           <div
             key={attachment.id}
             className="flex items-center gap-3 p-3 rounded-xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))] hover:border-[rgb(var(--border-strong))] transition-colors group"
           >
-            {attachment.file_type.startsWith('image/') || /\.(png|jpe?g)$/i.test(attachment.file_name) ? (
-              <AttachmentThumbnail attachment={attachment} />
+            {isImage ? (
+              <button
+                type="button"
+                className="shrink-0 cursor-zoom-in"
+                onClick={() => handleOpen(attachment)}
+                title="Открыть изображение"
+              >
+                <AttachmentThumbnail attachment={attachment} />
+              </button>
             ) : (
-              <div className={`p-2 rounded-lg shrink-0 ${isPdf ? 'bg-red-50 text-red-500 dark:bg-red-900/30' : 'bg-blue-50 text-blue-500 dark:bg-blue-900/30'}`}>
-                {isPdf ? <FileText className="h-5 w-5" /> : <FileIcon className="h-5 w-5" />}
+              <div
+                className={`p-2 rounded-lg shrink-0 ${
+                  isPdf
+                    ? 'bg-red-50 text-red-500 dark:bg-red-900/30'
+                    : 'bg-blue-50 text-blue-500 dark:bg-blue-900/30'
+                }`}
+              >
+                {isPdf ? (
+                  <FileText className="h-5 w-5" />
+                ) : (
+                  <FileIcon className="h-5 w-5" />
+                )}
               </div>
             )}
-            
-            <div className="flex-1 min-w-0">
+
+            <button
+              type="button"
+              className="flex-1 min-w-0 text-left"
+              onClick={() => handleOpen(attachment)}
+            >
               <p className="text-sm font-medium truncate" title={attachment.file_name}>
                 {attachment.file_name}
               </p>
               <p className="text-xs text-[rgb(var(--fg-muted))]">
-                {formatFileSize(attachment.file_size)} • {new Date(attachment.created_at).toLocaleDateString()}
+                {formatFileSize(attachment.file_size)} •{' '}
+                {new Date(attachment.created_at).toLocaleDateString()}
+                {canPreview && (
+                  <span className="ml-1 text-accent-500">· открыть в трекере</span>
+                )}
               </p>
-            </div>
+            </button>
 
             <div className="flex items-center gap-1 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-              {isPdf && onPreviewClick && (
+              {canPreview && onPreviewClick && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-[rgb(var(--fg-secondary))]"
                   onClick={() => onPreviewClick(attachment)}
-                  title="Предпросмотр"
+                  title="Открыть"
                 >
                   <Eye className="h-4 w-4" />
                 </Button>

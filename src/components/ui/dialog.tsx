@@ -35,14 +35,24 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-[rgb(var(--bg-card))] border border-[rgb(var(--border-default))] p-6 shadow-2xl duration-300',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
+        'fixed z-50 w-full bg-[rgb(var(--bg-card))] border border-[rgb(var(--border-default))] shadow-2xl duration-300',
+        /* desktop: centered modal */
+        'sm:left-1/2 sm:top-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6',
+        /* mobile / Telegram: bottom sheet — не вылезает за края */
+        'left-0 right-0 bottom-0 top-auto max-h-[min(92dvh,var(--tg-viewport-stable-height,92dvh))]',
+        'rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+        'overflow-y-auto overscroll-contain',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+        'sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]',
+        'sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]',
+        'sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95',
         className
       )}
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1.5 text-[rgb(var(--fg-muted))] opacity-70 hover:opacity-100 hover:bg-[rgb(var(--bg-secondary))] transition-all">
+      <DialogPrimitive.Close className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-lg p-2 text-[rgb(var(--fg-muted))] opacity-70 hover:opacity-100 hover:bg-[rgb(var(--bg-secondary))] transition-all touch-manipulation">
         <X className="h-4 w-4" />
         <span className="sr-only">Закрыть</span>
       </DialogPrimitive.Close>

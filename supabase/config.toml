@@ -1,0 +1,11 @@
+# Supabase project config (linked to remote Concurio)
+project_id = "dwsssmmdixklwgzbbgfa"
+
+[api]
+enabled = true
+
+[functions.telegram-auth]
+verify_jwt = false
+
+[functions.public-share]
+verify_jwt = false

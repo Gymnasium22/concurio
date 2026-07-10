@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Contest tracking Telegram Mini App + Web Application",
+  "description": "Modern task & contest tracker — Telegram Mini App + Web (2026)",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -28,6 +28,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.0.0",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.470.0",
     "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",

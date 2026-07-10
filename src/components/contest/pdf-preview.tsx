@@ -20,7 +20,10 @@ interface FilePreviewProps {
 function isImageFile(fileType?: string, fileName?: string): boolean {
   const isImageType = fileType?.startsWith('image/');
   const lowerName = fileName?.toLowerCase() ?? '';
-  return isImageType || lowerName.endsWith('.png') || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg');
+  return (
+    !!isImageType ||
+    /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(lowerName)
+  );
 }
 
 export function FilePreview({ filePath, fileName, fileType }: FilePreviewProps) {
@@ -66,8 +69,25 @@ export function FilePreview({ filePath, fileName, fileType }: FilePreviewProps) 
 
   if (isImageFile(fileType, fileName)) {
     return (
-      <div className="flex items-center justify-center bg-[rgb(var(--bg-secondary))] p-4 min-h-[400px] max-h-[70vh] overflow-auto">
-        <img src={url} alt={fileName ?? 'Изображение'} className="max-w-full max-h-full object-contain rounded-xl shadow-md" />
+      <div className="flex flex-col h-full bg-black/90">
+        <div className="flex-1 flex items-center justify-center p-3 sm:p-6 overflow-auto">
+          <img
+            src={url}
+            alt={fileName ?? 'Изображение'}
+            className="max-w-full max-h-[calc(85vh-80px)] object-contain rounded-lg shadow-2xl select-none"
+            draggable={false}
+          />
+        </div>
+        <div className="shrink-0 flex justify-center gap-2 p-3 border-t border-white/10">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-white/80 hover:text-white underline underline-offset-2"
+          >
+            Открыть в новой вкладке
+          </a>
+        </div>
       </div>
     );
   }

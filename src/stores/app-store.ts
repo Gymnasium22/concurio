@@ -5,7 +5,7 @@
  */
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ContestStatus, ThemeMode } from '@/types';
+import type { ContestStatus, TaskPriority, TaskType, ThemeMode } from '@/types';
 
 interface AppState {
   // Тема
@@ -21,8 +21,12 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   statusFilter: ContestStatus | 'all';
   setStatusFilter: (status: ContestStatus | 'all') => void;
-  sortBy: 'due_date' | 'created_at' | 'title';
-  setSortBy: (sort: 'due_date' | 'created_at' | 'title') => void;
+  taskTypeFilter: TaskType | 'all';
+  setTaskTypeFilter: (type: TaskType | 'all') => void;
+  priorityFilter: TaskPriority | 'all';
+  setPriorityFilter: (priority: TaskPriority | 'all') => void;
+  sortBy: 'due_date' | 'created_at' | 'title' | 'priority';
+  setSortBy: (sort: 'due_date' | 'created_at' | 'title' | 'priority') => void;
   sortOrder: 'asc' | 'desc';
   setSortOrder: (order: 'asc' | 'desc') => void;
 
@@ -50,6 +54,10 @@ export const useAppStore = create<AppState>()(
       setSearchQuery: (query) => set({ searchQuery: query }),
       statusFilter: 'all',
       setStatusFilter: (status) => set({ statusFilter: status }),
+      taskTypeFilter: 'all',
+      setTaskTypeFilter: (type) => set({ taskTypeFilter: type }),
+      priorityFilter: 'all',
+      setPriorityFilter: (priority) => set({ priorityFilter: priority }),
       sortBy: 'due_date',
       setSortBy: (sort) => set({ sortBy: sort }),
       sortOrder: 'asc',

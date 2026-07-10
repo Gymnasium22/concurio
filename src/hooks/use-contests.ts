@@ -25,27 +25,47 @@ import { startOfWeek, isAfter, isBefore, addDays } from 'date-fns';
  * Получить все конкурсы текущего пользователя (с фильтрацией)
  */
 export function useContests() {
-  const { searchQuery, statusFilter, sortBy, sortOrder } = useAppStore();
+  const {
+    searchQuery,
+    statusFilter,
+    taskTypeFilter,
+    priorityFilter,
+    sortBy,
+    sortOrder,
+  } = useAppStore();
 
   return useQuery({
-    queryKey: [...QUERY_KEYS.contests, searchQuery, statusFilter, sortBy, sortOrder],
+    queryKey: [
+      ...QUERY_KEYS.contests,
+      searchQuery,
+      statusFilter,
+      taskTypeFilter,
+      priorityFilter,
+      sortBy,
+      sortOrder,
+    ],
     queryFn: async (): Promise<Contest[]> => {
-      let query = supabase
-        .from('contests')
-        .select('*');
+      let query = supabase.from('contests').select('*');
 
-      // Фильтр по статусу
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
       }
 
-      // Поиск по названию
+      if (taskTypeFilter !== 'all') {
+        query = query.eq('task_type', taskTypeFilter);
+      }
+
+      if (priorityFilter !== 'all') {
+        query = query.eq('priority', priorityFilter);
+      }
+
       if (searchQuery.trim()) {
         query = query.ilike('title', `%${searchQuery.trim()}%`);
       }
 
-      // Сортировка
-      query = query.order(sortBy, {
+      // priority сортируем на клиенте (enum), остальное — на сервере
+      const serverSort = sortBy === 'priority' ? 'due_date' : sortBy;
+      query = query.order(serverSort, {
         ascending: sortOrder === 'asc',
         nullsFirst: false,
       });
@@ -53,10 +73,38 @@ export function useContests() {
       const { data, error } = await query;
 
       if (error) throw new Error(error.message);
-      return (data ?? []) as Contest[];
+
+      let rows = (data ?? []).map(normalizeContest);
+
+      if (sortBy === 'priority') {
+        const weight: Record<string, number> = {
+          low: 1,
+          medium: 2,
+          high: 3,
+          urgent: 4,
+        };
+        rows = [...rows].sort((a, b) => {
+          const diff = (weight[a.priority] ?? 0) - (weight[b.priority] ?? 0);
+          return sortOrder === 'asc' ? diff : -diff;
+        });
+      }
+
+      return rows;
     },
-    staleTime: 30_000, // 30 секунд
+    staleTime: 30_000,
   });
+}
+
+/** Нормализация старых записей без новых колонок */
+function normalizeContest(row: Record<string, unknown>): Contest {
+  return {
+    ...(row as unknown as Contest),
+    task_type: (row.task_type as Contest['task_type']) ?? 'contest',
+    priority: (row.priority as Contest['priority']) ?? 'medium',
+    tags: (row.tags as string[]) ?? [],
+    color: (row.color as string | null) ?? null,
+    telegram_message_links: (row.telegram_message_links as string[]) ?? [],
+  };
 }
 
 /**
@@ -73,7 +121,7 @@ export function useContest(id: string | undefined) {
         .single();
 
       if (error) throw new Error(error.message);
-      return data as Contest;
+      return normalizeContest(data as Record<string, unknown>);
     },
     enabled: !!id,
   });
@@ -112,37 +160,44 @@ export function useDashboardStats() {
 
       if (error) throw new Error(error.message);
 
-      const contests = (data ?? []) as Contest[];
+      const contests = (data ?? []).map((r) =>
+        normalizeContest(r as Record<string, unknown>)
+      );
       const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Понедельник
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
 
       return {
         total: contests.length,
-        completed: contests.filter(c => c.status === 'done').length,
-        overdue: contests.filter(c =>
-          c.due_date &&
-          isBefore(new Date(c.due_date), now) &&
-          c.status !== 'done' &&
-          c.status !== 'cancelled'
+        completed: contests.filter((c) => c.status === 'done').length,
+        overdue: contests.filter(
+          (c) =>
+            c.due_date &&
+            isBefore(new Date(c.due_date), now) &&
+            c.status !== 'done' &&
+            c.status !== 'cancelled'
         ).length,
-        inProgress: contests.filter(c =>
-          c.status === 'in_progress' || c.status === 'review'
+        inProgress: contests.filter(
+          (c) => c.status === 'in_progress' || c.status === 'review'
         ).length,
-        completedThisWeek: contests.filter(c =>
-          c.status === 'done' &&
-          c.updated_at &&
-          isAfter(new Date(c.updated_at), weekStart)
+        completedThisWeek: contests.filter(
+          (c) =>
+            c.status === 'done' &&
+            c.updated_at &&
+            isAfter(new Date(c.updated_at), weekStart)
         ).length,
-        upcomingDeadlines: contests.filter(c =>
-          c.due_date &&
-          isAfter(new Date(c.due_date), now) &&
-          isBefore(new Date(c.due_date), addDays(now, 7)) &&
-          c.status !== 'done' &&
-          c.status !== 'cancelled'
+        upcomingDeadlines: contests.filter(
+          (c) =>
+            c.due_date &&
+            isAfter(new Date(c.due_date), now) &&
+            isBefore(new Date(c.due_date), addDays(now, 7)) &&
+            c.status !== 'done' &&
+            c.status !== 'cancelled'
         ).length,
+        contests: contests.filter((c) => c.task_type === 'contest').length,
+        tasks: contests.filter((c) => c.task_type !== 'contest').length,
       };
     },
-    staleTime: 60_000, // 1 минута
+    staleTime: 60_000,
   });
 }
 
@@ -158,8 +213,11 @@ export function useCreateContest() {
 
   return useMutation({
     mutationFn: async (input: ContestInsert): Promise<Contest> => {
-      // Получаем текущего пользователя
-      const { data: { user } } = await supabase.auth.getUser();
+      // getSession — без лишнего запроса /auth/v1/user (он мог сбрасывать сессию при 403)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error('Не авторизован');
 
       const { data, error } = await supabase
@@ -172,7 +230,7 @@ export function useCreateContest() {
         .single();
 
       if (error) throw new Error(error.message);
-      return data as Contest;
+      return normalizeContest(data as Record<string, unknown>);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
@@ -200,7 +258,7 @@ export function useUpdateContest() {
         .single();
 
       if (error) throw new Error(error.message);
-      return data as Contest;
+      return normalizeContest(data as Record<string, unknown>);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
