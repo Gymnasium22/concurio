@@ -126,7 +126,7 @@ export function Dashboard() {
           (isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
               {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="min-h-[200px] sm:min-h-[212px] h-full rounded-2xl" />
+                <Skeleton key={i} className="min-h-[156px] sm:min-h-[164px] h-full rounded-2xl" />
               ))}
             </div>
           ) : !contests || contests.length === 0 ? (

@@ -35,9 +35,8 @@ interface ContestCardProps {
   index: number;
 }
 
-/** Фиксированная высота карточки — сетка выглядит ровно */
-const CARD_MIN_H =
-  'min-h-[200px] sm:min-h-[212px] h-full';
+/** Единая компактная высота карточек */
+const CARD_MIN_H = 'min-h-[156px] sm:min-h-[164px] h-full';
 
 export function ContestCard({ contest, index }: ContestCardProps) {
   const urgency = getDeadlineUrgency(contest.due_date);
@@ -124,24 +123,23 @@ export function ContestCard({ contest, index }: ContestCardProps) {
         {/* Цвет приоритета слева */}
         <div
           className={cn(
-            'w-1.5 sm:w-2 shrink-0 self-stretch',
+            'w-1 shrink-0 self-stretch',
             PRIORITY_BAR[contest.priority] ?? PRIORITY_BAR.medium
           )}
           title={`Приоритет: ${PRIORITY_LABELS[contest.priority] ?? contest.priority}`}
           aria-label={`Приоритет: ${PRIORITY_LABELS[contest.priority] ?? contest.priority}`}
         />
 
-        <CardContent className="p-4 sm:p-5 flex flex-col flex-1 min-h-0 gap-0 min-w-0">
+        <CardContent className="p-3 sm:p-3.5 flex flex-col flex-1 min-h-0 gap-0 min-w-0">
           <Link
             to={`/contest/${contest.id}`}
             className="flex flex-col flex-1 min-h-0 outline-none focus-visible:ring-2 focus-visible:ring-accent-400 rounded-lg"
           >
-            {/* Верх: бейджи + статус — фиксированная зона */}
-            <div className="flex justify-between items-start gap-2 shrink-0">
-              <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
+            <div className="flex justify-between items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
                 <span
                   className={cn(
-                    'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold border',
+                    'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold border',
                     typeStyle.text,
                     typeStyle.bg,
                     typeStyle.border
@@ -151,36 +149,34 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                 </span>
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium',
+                    'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
                     priorityStyle.text,
                     priorityStyle.bg
                   )}
                 >
                   <span
-                    className={cn('h-1.5 w-1.5 rounded-full', priorityStyle.dot)}
+                    className={cn('h-1 w-1 rounded-full', priorityStyle.dot)}
                   />
                   {PRIORITY_LABELS[contest.priority] ?? 'Средний'}
                 </span>
               </div>
-              <StatusBadge status={contest.status} className="shrink-0" />
+              <StatusBadge status={contest.status} className="shrink-0 scale-90 origin-right" />
             </div>
 
-            {/* Заголовок — 2 строки всегда по высоте */}
             <h3
               className={cn(
-                'mt-2 text-base sm:text-[1.05rem] font-semibold leading-snug',
+                'mt-1.5 text-sm sm:text-[0.95rem] font-semibold leading-snug',
                 'text-[rgb(var(--fg-primary))] group-hover:text-accent-500 transition-colors',
-                'line-clamp-2 min-h-[2.6em]'
+                'line-clamp-1 min-h-[1.35em]'
               )}
               title={contest.title}
             >
               {contest.title}
             </h3>
 
-            {/* Описание — всегда 2 строки (плейсхолдер если пусто) */}
             <p
               className={cn(
-                'mt-1 text-sm leading-snug line-clamp-2 min-h-[2.5em]',
+                'mt-0.5 text-xs leading-snug line-clamp-1 min-h-[1.25em]',
                 contest.description
                   ? 'text-[rgb(var(--fg-secondary))]'
                   : 'text-[rgb(var(--fg-muted))]/50'
@@ -189,66 +185,60 @@ export function ContestCard({ contest, index }: ContestCardProps) {
               {contest.description?.trim() || 'Без описания'}
             </p>
 
-            {/* Мета + прогресс — прижаты к низу блока Link */}
-            <div className="mt-auto pt-3 space-y-2.5 shrink-0">
-              <div className="flex items-center justify-between gap-2 min-h-[1.25rem]">
+            <div className="mt-auto pt-2 space-y-1.5 shrink-0">
+              <div className="flex items-center justify-between gap-2">
                 <div
                   className={cn(
-                    'flex items-center gap-1.5 text-sm font-medium truncate',
+                    'flex items-center gap-1 text-xs font-medium truncate',
                     urgencyColor
                   )}
                 >
-                  <Calendar className="h-4 w-4 shrink-0" />
+                  <Calendar className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{formatDate(contest.due_date)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-[rgb(var(--fg-muted))] shrink-0">
+                <div className="flex items-center gap-1.5 text-[rgb(var(--fg-muted))] shrink-0">
                   {hasLinks ? (
-                    <span className="flex items-center gap-0.5 text-xs">
-                      <MessageCircle className="h-3.5 w-3.5" />
+                    <span className="flex items-center gap-0.5 text-[10px]">
+                      <MessageCircle className="h-3 w-3" />
                       {contest.telegram_message_links.length}
                     </span>
-                  ) : (
-                    <span className="w-6" aria-hidden />
+                  ) : null}
+                  {contest.priority === 'urgent' && (
+                    <Flag className="h-3 w-3 text-red-500" />
                   )}
-                  {contest.priority === 'urgent' ? (
-                    <Flag className="h-3.5 w-3.5 text-red-500" />
-                  ) : (
-                    <span className="w-3.5" aria-hidden />
-                  )}
-                  <ChevronRight className="h-4 w-4 text-[rgb(var(--fg-muted))] group-hover:text-accent-500 hidden sm:block" />
+                  <ChevronRight className="h-3.5 w-3.5 text-[rgb(var(--fg-muted))] group-hover:text-accent-500 hidden sm:block" />
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <Progress value={contest.progress} className="h-2 flex-1" />
-                <span className="text-xs font-bold w-9 text-right tabular-nums text-[rgb(var(--fg-secondary))]">
+                <Progress value={contest.progress} className="h-1.5 flex-1" />
+                <span className="text-[10px] font-bold w-8 text-right tabular-nums text-[rgb(var(--fg-secondary))]">
                   {contest.progress}%
                 </span>
               </div>
             </div>
           </Link>
 
-          {/* Зона действий — всегда одной высоты */}
-          <div className="mt-3 pt-2.5 border-t border-[rgb(var(--border-default))] min-h-[2.5rem] flex items-center shrink-0">
+          <div className="mt-2 pt-2 border-t border-[rgb(var(--border-default))] min-h-[1.75rem] flex items-center shrink-0">
             {showActions ? (
-              <div className="flex flex-wrap gap-1.5 w-full">
+              <div className="flex flex-wrap gap-1 w-full">
                 {contest.status === 'todo' && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs gap-1 flex-1 sm:flex-none"
+                    className="h-7 text-[11px] gap-0.5 px-2 flex-1 sm:flex-none"
                     onClick={startWork}
                     disabled={updateStatus.isPending}
                   >
-                    <Play className="h-3.5 w-3.5" />В работу
+                    <Play className="h-3 w-3" />В работу
                   </Button>
                 )}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs gap-1 flex-1 sm:flex-none"
+                  className="h-7 text-[11px] gap-0.5 px-2 flex-1 sm:flex-none"
                   onClick={bumpProgress}
                   disabled={updateContest.isPending}
                 >
@@ -258,16 +248,16 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs gap-1 flex-1 sm:flex-none text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-900/20"
+                  className="h-7 text-[11px] gap-0.5 px-2 flex-1 sm:flex-none text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-900/20"
                   onClick={markDone}
                   disabled={updateStatus.isPending}
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <CheckCircle2 className="h-3 w-3" />
                   Готово
                 </Button>
               </div>
             ) : (
-              <p className="text-xs text-[rgb(var(--fg-muted))] w-full text-center sm:text-left">
+              <p className="text-[11px] text-[rgb(var(--fg-muted))] w-full text-center sm:text-left">
                 {contest.status === 'done' ? 'Выполнено' : 'Отменено'}
               </p>
             )}
