@@ -28,6 +28,7 @@ export function useContests() {
   const {
     searchQuery,
     statusFilter,
+    hideCompleted,
     taskTypeFilter,
     priorityFilter,
     sortBy,
@@ -39,6 +40,7 @@ export function useContests() {
       ...QUERY_KEYS.contests,
       searchQuery,
       statusFilter,
+      hideCompleted,
       taskTypeFilter,
       priorityFilter,
       sortBy,
@@ -49,6 +51,9 @@ export function useContests() {
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
+      } else if (hideCompleted) {
+        // Активные: без готовых и отменённых
+        query = query.not('status', 'in', '(done,cancelled)');
       }
 
       if (taskTypeFilter !== 'all') {

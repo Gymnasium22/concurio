@@ -1,5 +1,5 @@
 /**
- * Calendar — календарь для выбора даты (react-day-picker)
+ * Calendar — календарь для выбора даты (react-day-picker v9)
  */
 import * as React from 'react';
 import { DayPicker } from 'react-day-picker';
@@ -22,22 +22,25 @@ function Calendar({
       locale={ru}
       className={cn('p-3', className)}
       classNames={{
-        months: 'flex flex-col sm:flex-row gap-4',
-        month: 'flex flex-col gap-4',
-        month_caption: 'flex justify-center pt-1 relative items-center',
-        caption_label: 'text-sm font-medium capitalize',
-        nav: 'flex items-center gap-1',
+        months: 'relative flex flex-col sm:flex-row gap-4',
+        month: 'flex w-full flex-col gap-4',
+        // Nav sits over the caption row (not over the day grid)
+        nav: 'absolute inset-x-0 top-0 flex w-full items-center justify-between z-10',
         button_previous: cn(
           buttonVariants({ variant: 'outline' }),
-          'absolute left-1 h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100'
+          'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100'
         ),
         button_next: cn(
           buttonVariants({ variant: 'outline' }),
-          'absolute right-1 h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100'
+          'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100'
         ),
+        // Horizontal padding reserves space so the month label doesn't collide with arrows
+        month_caption: 'flex h-7 w-full items-center justify-center px-8',
+        caption_label: 'text-sm font-medium capitalize',
         month_grid: 'w-full border-collapse',
         weekdays: 'flex',
-        weekday: 'text-[rgb(var(--fg-muted))] rounded-md w-9 font-normal text-[0.8rem]',
+        weekday:
+          'text-[rgb(var(--fg-muted))] rounded-md w-9 font-normal text-[0.8rem]',
         week: 'flex w-full mt-2',
         day: cn(
           'relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent-100 dark:[&:has([aria-selected])]:bg-accent-900/30 [&:has([aria-selected].day-outside)]:bg-accent-100/50 [&:has([aria-selected].day-range-end)]:rounded-r-md',
@@ -48,11 +51,15 @@ function Calendar({
           'h-9 w-9 p-0 font-normal aria-selected:opacity-100'
         ),
         range_end: 'day-range-end',
-        selected: 'bg-accent-500 text-white hover:bg-accent-600 hover:text-white focus:bg-accent-500 focus:text-white rounded-md',
-        today: 'bg-accent-100 text-accent-900 dark:bg-accent-900/30 dark:text-accent-200 rounded-md',
-        outside: 'day-outside text-[rgb(var(--fg-muted))] opacity-50 aria-selected:bg-accent-100/50 aria-selected:text-[rgb(var(--fg-muted))] aria-selected:opacity-30',
+        selected:
+          'bg-accent-500 text-white hover:bg-accent-600 hover:text-white focus:bg-accent-500 focus:text-white rounded-md',
+        today:
+          'bg-accent-100 text-accent-900 dark:bg-accent-900/30 dark:text-accent-200 rounded-md',
+        outside:
+          'day-outside text-[rgb(var(--fg-muted))] opacity-50 aria-selected:bg-accent-100/50 aria-selected:text-[rgb(var(--fg-muted))] aria-selected:opacity-30',
         disabled: 'text-[rgb(var(--fg-muted))] opacity-50',
-        range_middle: 'aria-selected:bg-accent-100 aria-selected:text-accent-900 dark:aria-selected:bg-accent-900/30 dark:aria-selected:text-accent-200',
+        range_middle:
+          'aria-selected:bg-accent-100 aria-selected:text-accent-900 dark:aria-selected:bg-accent-900/30 dark:aria-selected:text-accent-200',
         hidden: 'invisible',
         ...classNames,
       }}

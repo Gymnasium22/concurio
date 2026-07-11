@@ -1,9 +1,15 @@
 /**
- * ContestFilters — поиск, тип, статус, приоритет, сортировка
+ * ContestFilters — поиск, тип, статус, приоритет, сортировка, архив
  */
 import { useAppStore } from '@/stores/app-store';
 import { Input } from '@/components/ui/input';
-import { Search, SlidersHorizontal, ArrowDownUp } from 'lucide-react';
+import {
+  Search,
+  SlidersHorizontal,
+  ArrowDownUp,
+  Archive,
+  ArchiveRestore,
+} from 'lucide-react';
 import {
   STATUS_LABELS,
   STATUS_ORDER,
@@ -29,6 +35,8 @@ export function ContestFilters() {
     setSearchQuery,
     statusFilter,
     setStatusFilter,
+    hideCompleted,
+    setHideCompleted,
     taskTypeFilter,
     setTaskTypeFilter,
     priorityFilter,
@@ -71,6 +79,41 @@ export function ContestFilters() {
         </div>
 
         <div className="flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(
+              'h-11 gap-2 border-dashed shrink-0',
+              !hideCompleted &&
+                'border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-900/30 dark:text-accent-300'
+            )}
+            onClick={() => {
+              const next = !hideCompleted;
+              setHideCompleted(next);
+              // При скрытии архива сбрасываем фильтр «Готово/Отменён», чтобы не остаться на пустом списке
+              if (next && (statusFilter === 'done' || statusFilter === 'cancelled')) {
+                setStatusFilter('all');
+              }
+            }}
+            title={
+              hideCompleted
+                ? 'Готовые скрыты. Нажмите, чтобы показать архив'
+                : 'Показаны все задачи. Нажмите, чтобы скрыть готовые'
+            }
+          >
+            {hideCompleted ? (
+              <Archive className="h-4 w-4" />
+            ) : (
+              <ArchiveRestore className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">
+              {hideCompleted ? 'Архив' : 'Только активные'}
+            </span>
+            <span className="sm:hidden">
+              {hideCompleted ? 'Архив' : 'Активные'}
+            </span>
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-11 gap-2 border-dashed">

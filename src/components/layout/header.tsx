@@ -11,8 +11,7 @@ import { useAppStore } from '@/stores/app-store';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
-  { path: '/', label: 'Дашборд' },
-  { path: '/contests', label: 'Задачи' },
+  { path: '/', label: 'Задачи' },
   { path: '/kanban', label: 'Канбан' },
   { path: '/calendar', label: 'Календарь' },
 ];
@@ -59,10 +58,12 @@ export function Header() {
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map(({ path, label }) => {
               const isActive =
-                location.pathname === path ||
-                (path === '/contests' &&
-                  (location.pathname.startsWith('/contest') ||
-                    location.pathname === '/'));
+                path === '/'
+                  ? location.pathname === '/' ||
+                    location.pathname === '/contests' ||
+                    location.pathname.startsWith('/contest')
+                  : location.pathname === path ||
+                    location.pathname.startsWith(`${path}/`);
               return (
                 <Link
                   key={path}

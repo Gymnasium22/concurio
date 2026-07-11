@@ -40,10 +40,14 @@ export function BottomNav() {
         <div className="flex items-stretch justify-around px-1 h-[3.75rem] max-w-lg mx-auto">
           {navItems.map(({ path, icon: Icon, label, accent }) => {
             const isActive =
-              location.pathname === path ||
-              (path === '/' &&
-                (location.pathname.startsWith('/contest') ||
-                  location.pathname === '/contests'));
+              path === '/'
+                ? location.pathname === '/' ||
+                  location.pathname === '/contests' ||
+                  location.pathname.startsWith('/contest')
+                : path === '/create'
+                  ? location.pathname === '/create'
+                  : location.pathname === path ||
+                    location.pathname.startsWith(`${path}/`);
 
             return (
               <Link

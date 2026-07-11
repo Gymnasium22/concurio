@@ -21,6 +21,9 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   statusFilter: ContestStatus | 'all';
   setStatusFilter: (status: ContestStatus | 'all') => void;
+  /** Скрывать готовые и отменённые (архив) — по умолчанию true */
+  hideCompleted: boolean;
+  setHideCompleted: (hide: boolean) => void;
   taskTypeFilter: TaskType | 'all';
   setTaskTypeFilter: (type: TaskType | 'all') => void;
   priorityFilter: TaskPriority | 'all';
@@ -54,6 +57,8 @@ export const useAppStore = create<AppState>()(
       setSearchQuery: (query) => set({ searchQuery: query }),
       statusFilter: 'all',
       setStatusFilter: (status) => set({ statusFilter: status }),
+      hideCompleted: true,
+      setHideCompleted: (hide) => set({ hideCompleted: hide }),
       taskTypeFilter: 'all',
       setTaskTypeFilter: (type) => set({ taskTypeFilter: type }),
       priorityFilter: 'all',
@@ -74,6 +79,7 @@ export const useAppStore = create<AppState>()(
         theme: state.theme,
         sortBy: state.sortBy,
         sortOrder: state.sortOrder,
+        hideCompleted: state.hideCompleted,
       }),
     }
   )
