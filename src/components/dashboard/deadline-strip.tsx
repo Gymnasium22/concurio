@@ -12,7 +12,6 @@ import {
   cn,
 } from '@/lib/utils';
 import { DASHBOARD_DEADLINE_COUNT } from '@/lib/constants';
-import { CalendarClock } from 'lucide-react';
 
 export function DeadlineStrip() {
   const { data: contests, isLoading } = useContests();
