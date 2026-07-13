@@ -99,22 +99,24 @@ export function PublicSharePage() {
   }, [data?.attachments]);
 
   return (
-    <div className="min-h-[var(--tg-viewport-stable-height,100dvh)] bg-[rgb(var(--bg-primary))] text-[rgb(var(--fg-primary))] overflow-x-hidden">
-      <header className="sticky top-0 z-40 glass border-b border-[rgb(var(--border-default))] pt-[var(--tg-content-safe-top,0px)]">
+    <div className="min-h-[var(--tg-viewport-stable-height,100dvh)] flex flex-col bg-[rgb(var(--bg-primary))] text-[rgb(var(--fg-primary))] overflow-x-hidden">
+      <header className="sticky top-0 z-40 glass border-b border-[rgb(var(--border-default))] pt-[var(--tg-content-safe-top,0px)] shrink-0">
         <div className="max-w-3xl mx-auto px-3 sm:px-4 h-12 sm:h-14 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-8 w-8 shrink-0 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center">
               <CheckSquare className="h-4 w-4 text-white" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-bold leading-tight">Concurio</p>
               <p className="text-[10px] text-[rgb(var(--fg-muted))]">
                 Публичный просмотр
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
             <Link to="/">
               <Button size="sm" variant="outline">
                 Войти
@@ -124,21 +126,35 @@ export function PublicSharePage() {
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <main
+        className={cn(
+          'flex-1 w-full max-w-3xl mx-auto px-3 sm:px-4',
+          'py-4 sm:py-6 space-y-4 sm:space-y-6',
+          'pb-[max(1.5rem,env(safe-area-inset-bottom))]',
+          /* на десктопе ошибка/лоадер — по центру, без «дыры» внизу */
+          (loading || error) &&
+            'flex flex-col justify-center min-h-[min(70vh,calc(100dvh-5rem))]'
+        )}
+      >
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-accent-500" />
             <p className="text-sm text-[rgb(var(--fg-muted))]">Загрузка…</p>
           </div>
         )}
 
         {error && !loading && (
-          <div className="glass rounded-2xl p-8 text-center space-y-3">
+          <div className="glass rounded-2xl p-8 sm:p-10 text-center space-y-3 max-w-lg mx-auto w-full shadow-lg border border-[rgb(var(--border-default))]">
             <AlertCircle className="h-10 w-10 text-amber-500 mx-auto" />
             <h1 className="text-xl font-bold">{error}</h1>
             <p className="text-sm text-[rgb(var(--fg-muted))]">
               Попросите владельца прислать новую ссылку или открыть доступ снова.
             </p>
+            <Link to="/">
+              <Button className="mt-2" variant="outline">
+                На страницу входа
+              </Button>
+            </Link>
           </div>
         )}
 
@@ -225,9 +241,7 @@ export function PublicSharePage() {
                           })}
                         </span>
                       )}
-                      <span className="font-medium text-accent-500">
-                        {c.progress}%
-                      </span>
+                      <span className="font-medium text-accent-500">{c.progress}%</span>
                     </div>
 
                     <Progress value={c.progress ?? 0} className="h-2" />
@@ -256,13 +270,10 @@ export function PublicSharePage() {
                               key={item.id}
                               className={cn(
                                 'text-sm flex items-start gap-2',
-                                item.is_done &&
-                                  'line-through text-[rgb(var(--fg-muted))]'
+                                item.is_done && 'line-through text-[rgb(var(--fg-muted))]'
                               )}
                             >
-                              <span className="mt-0.5">
-                                {item.is_done ? '☑' : '☐'}
-                              </span>
+                              <span className="mt-0.5">{item.is_done ? '☑' : '☐'}</span>
                               {item.title}
                             </li>
                           ))}

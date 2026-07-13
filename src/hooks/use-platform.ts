@@ -132,9 +132,16 @@ export function usePreferences() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error('Не авторизован');
-      return fetchPreferences(session.user.id);
+      // mock visual user / offline prefs
+      const { VISUAL_MOCK_USER } = await import('@/lib/visual-mock');
+      const userId = session?.user?.id ?? VISUAL_MOCK_USER?.id;
+      if (!userId) {
+        return fetchPreferences('local');
+      }
+      return fetchPreferences(userId);
     },
+    staleTime: 30_000,
+    retry: false,
   });
 }
 
@@ -148,8 +155,9 @@ export function useSavePreferences() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error('Не авторизован');
-      return savePreferences(session.user.id, patch);
+      const { VISUAL_MOCK_USER } = await import('@/lib/visual-mock');
+      const userId = session?.user?.id ?? VISUAL_MOCK_USER?.id ?? 'local';
+      return savePreferences(userId, patch);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['preferences'] }),
   });

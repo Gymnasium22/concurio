@@ -36,12 +36,13 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         'fixed z-50 w-full bg-[rgb(var(--bg-card))] border border-[rgb(var(--border-default))] shadow-2xl duration-300',
-        /* desktop: centered modal */
-        'sm:left-1/2 sm:top-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6',
-        /* mobile / Telegram: bottom sheet — не вылезает за края */
+        /* mobile / Telegram: bottom sheet */
         'left-0 right-0 bottom-0 top-auto max-h-[min(92dvh,var(--tg-viewport-stable-height,92dvh))]',
         'rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
         'overflow-y-auto overscroll-contain',
+        /* desktop: настоящий centered modal (обязательно сбросить bottom!) */
+        'sm:left-1/2 sm:right-auto sm:top-1/2 sm:bottom-auto sm:max-w-lg',
+        'sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-6 sm:max-h-[min(88vh,720px)]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         'data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
         'sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]',

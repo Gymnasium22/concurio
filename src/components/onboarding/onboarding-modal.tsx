@@ -81,15 +81,17 @@ export function OnboardingModal() {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && void finish(false)}>
-      <DialogContent className="sm:max-w-md" aria-describedby="onboarding-desc">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-accent-500" aria-hidden />
+      <DialogContent className="sm:max-w-md gap-4" aria-describedby="onboarding-desc">
+        <DialogHeader className="mb-0 space-y-2">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <Sparkles className="h-5 w-5 text-accent-500 shrink-0" aria-hidden />
             {STEPS[step]?.title}
           </DialogTitle>
-          <DialogDescription id="onboarding-desc">{STEPS[step]?.body}</DialogDescription>
+          <DialogDescription id="onboarding-desc" className="text-sm leading-relaxed">
+            {STEPS[step]?.body}
+          </DialogDescription>
         </DialogHeader>
-        <div className="flex gap-1.5 py-2" aria-hidden>
+        <div className="flex gap-1.5" aria-hidden>
           {STEPS.map((_, i) => (
             <span
               key={i}
@@ -101,11 +103,19 @@ export function OnboardingModal() {
         </div>
         <div className="flex flex-col gap-2">
           {step < STEPS.length - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)}>Далее</Button>
+            <Button className="min-h-[44px]" onClick={() => setStep((s) => s + 1)}>
+              Далее
+            </Button>
           ) : (
             <>
-              <Button onClick={() => void finish(true)}>Добавить примеры и начать</Button>
-              <Button variant="outline" onClick={() => void finish(false)}>
+              <Button className="min-h-[44px]" onClick={() => void finish(true)}>
+                Добавить примеры и начать
+              </Button>
+              <Button
+                variant="outline"
+                className="min-h-[44px]"
+                onClick={() => void finish(false)}
+              >
                 Начать без примеров
               </Button>
             </>

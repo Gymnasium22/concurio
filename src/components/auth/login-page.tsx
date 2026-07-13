@@ -5,7 +5,13 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { isTelegramApp, isTelegramLinkFlow } from '@/lib/telegram';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CheckSquare, Mail, Lock, Loader2, Send, CheckCircle2 } from 'lucide-react';
@@ -91,7 +97,8 @@ export function LoginPage() {
                 <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
                 <h2 className="text-xl font-bold">Готово!</h2>
                 <p className="text-sm text-[rgb(var(--fg-secondary))]">
-                  {linkMessage || 'Telegram привязан. Вернитесь в браузер и обновите страницу.'}
+                  {linkMessage ||
+                    'Telegram привязан. Вернитесь в браузер и обновите страницу.'}
                 </p>
               </>
             ) : error ? (
@@ -99,7 +106,8 @@ export function LoginPage() {
                 <h2 className="text-xl font-bold text-red-500">Ошибка привязки</h2>
                 <p className="text-sm text-[rgb(var(--fg-secondary))]">{error}</p>
                 <p className="text-xs text-[rgb(var(--fg-muted))]">
-                  Вернитесь в браузер и нажмите «Привязать Telegram» ещё раз (ссылка одноразовая, 15 мин).
+                  Вернитесь в браузер и нажмите «Привязать Telegram» ещё раз (ссылка
+                  одноразовая, 15 мин).
                 </p>
               </>
             ) : null}
@@ -178,7 +186,11 @@ export function LoginPage() {
                       minLength={6}
                     />
                   </div>
-                  <Button type="submit" className="w-full h-11" disabled={authInProgress || isLoading}>
+                  <Button
+                    type="submit"
+                    className="w-full h-11"
+                    disabled={authInProgress || isLoading}
+                  >
                     {authInProgress || isLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : isLogin ? (
@@ -190,23 +202,19 @@ export function LoginPage() {
                 </form>
 
                 {isLogin && (
-                  <div className="text-center">
+                  <div className="text-center space-y-1">
                     <button
                       type="button"
                       onClick={handleForgotPassword}
                       disabled={authInProgress || !email.trim()}
                       className="text-sm text-accent-500 hover:underline disabled:opacity-50"
                     >
-                      Забыли пароль? Сбросить по email
+                      Забыли пароль?
                     </button>
-                    <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-2 px-2">
-                      Если раньше входили через Telegram, старый пароль мог сброситься —
-                      восстановите по email или войдите из Mini App бота @concurio_bot.
-                    </p>
                   </div>
                 )}
 
-                <div className="text-center text-sm">
+                <div className="text-center text-sm pt-1 border-t border-[rgb(var(--border-default))]">
                   <span className="text-[rgb(var(--fg-muted))]">
                     {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}
                   </span>
@@ -218,6 +226,9 @@ export function LoginPage() {
                     {isLogin ? 'Зарегистрироваться' : 'Войти'}
                   </button>
                 </div>
+                <p className="text-[11px] text-center text-[rgb(var(--fg-muted))] leading-snug px-1">
+                  Telegram Mini App: бот @concurio_bot
+                </p>
               </div>
             )}
           </CardContent>

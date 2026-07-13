@@ -69,6 +69,9 @@ const AutomationsPage = lazy(() =>
 function notifyError(error: unknown) {
   const message = error instanceof Error ? error.message : 'Неизвестная ошибка запроса';
   if (/abort|cancel/i.test(message)) return;
+  if (/не авторизован|not authenticated|JWT|Invalid login/i.test(message)) {
+    return;
+  }
   captureError(error);
   toast({
     title: 'Ошибка',

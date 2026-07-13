@@ -11,6 +11,7 @@ import {
 } from '@/lib/telegram';
 import type { AppUser } from '@/types';
 import type { User } from '@supabase/supabase-js';
+import { VISUAL_MOCK_USER } from '@/lib/visual-mock';
 
 interface AuthState {
   user: AppUser | null;
@@ -62,22 +63,22 @@ async function parseFunctionError(
 
   // FunctionsHttpError: body may be in context as Response or already-read clone
   const ctx = functionError?.context as
-    | Response
-    | { json?: () => Promise<{ error?: string }>; body?: string }
-    | undefined;
+    Response | { json?: () => Promise<{ error?: string }>; body?: string } | undefined;
 
   if (ctx) {
     try {
       if (typeof (ctx as Response).json === 'function') {
-        const body = await (ctx as Response).clone?.().json?.()
-          ?? await (ctx as Response).json();
+        const body =
+          (await (ctx as Response).clone?.().json?.()) ??
+          (await (ctx as Response).json());
         if (body?.error) detail = body.error;
       }
     } catch {
       try {
         if (typeof (ctx as Response).text === 'function') {
-          const text = await (ctx as Response).clone?.().text?.()
-            ?? await (ctx as Response).text();
+          const text =
+            (await (ctx as Response).clone?.().text?.()) ??
+            (await (ctx as Response).text());
           const parsed = JSON.parse(text);
           if (parsed?.error) detail = parsed.error;
         }
@@ -107,6 +108,16 @@ export function useAuth(): UseAuthReturn {
 
   useEffect(() => {
     const loadSession = async () => {
+      // Локальный visual-review без подтверждённого email
+      if (VISUAL_MOCK_USER) {
+        setState((s) => ({
+          ...s,
+          user: VISUAL_MOCK_USER,
+          isLoading: false,
+          error: null,
+        }));
+        return;
+      }
       try {
         const {
           data: { session },
