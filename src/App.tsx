@@ -1,10 +1,14 @@
 /**
- * App — роутинг, auth, публичный share без входа
- * Lazy-load тяжёлых страниц; ErrorBoundary; toast на ошибки Query
+ * App — роутинг, auth, public share, platform pages
  */
 import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryCache,
+  MutationCache,
+} from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
 import { initTelegramApp, isTelegramApp } from '@/lib/telegram';
 import { useAppStore } from '@/stores/app-store';
@@ -12,9 +16,13 @@ import { AppLayout } from '@/components/layout/app-layout';
 import { LoginPage } from '@/components/auth/login-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { OnboardingModal } from '@/components/onboarding/onboarding-modal';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import { initSentry, captureError } from '@/lib/sentry';
 import '@/lib/env';
+
+initSentry();
 
 const Dashboard = lazy(() =>
   import('@/pages/dashboard').then((m) => ({ default: m.Dashboard }))
@@ -45,12 +53,23 @@ const PublicSharePage = lazy(() =>
 const GalleryPage = lazy(() =>
   import('@/pages/gallery-page').then((m) => ({ default: m.GalleryPage }))
 );
+const AnalyticsPage = lazy(() =>
+  import('@/pages/analytics-page').then((m) => ({ default: m.AnalyticsPage }))
+);
+const TrashPage = lazy(() =>
+  import('@/pages/trash-page').then((m) => ({ default: m.TrashPage }))
+);
+const WorkspacePage = lazy(() =>
+  import('@/pages/workspace-page').then((m) => ({ default: m.WorkspacePage }))
+);
+const AutomationsPage = lazy(() =>
+  import('@/pages/automations-page').then((m) => ({ default: m.AutomationsPage }))
+);
 
 function notifyError(error: unknown) {
-  const message =
-    error instanceof Error ? error.message : 'Неизвестная ошибка запроса';
-  // Не спамим сетевыми шумовыми ошибками
+  const message = error instanceof Error ? error.message : 'Неизвестная ошибка запроса';
   if (/abort|cancel/i.test(message)) return;
+  captureError(error);
   toast({
     title: 'Ошибка',
     description: message,
@@ -80,8 +99,12 @@ function isPublicPath(pathname: string): boolean {
 
 function PageLoader() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-[rgb(var(--fg-muted))]">
-      <Loader2 className="h-8 w-8 animate-spin text-accent-500 mb-3" />
+    <div
+      className="flex flex-col items-center justify-center py-20 text-[rgb(var(--fg-muted))]"
+      role="status"
+      aria-live="polite"
+    >
+      <Loader2 className="h-8 w-8 animate-spin text-accent-500 mb-3" aria-hidden />
       <p className="text-sm">Загрузка...</p>
     </div>
   );
@@ -113,8 +136,11 @@ function AppRouter() {
 
   if (isLoading) {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-[rgb(var(--bg-primary))]">
-        <Loader2 className="h-10 w-10 animate-spin text-accent-500 mb-4" />
+      <div
+        className="min-h-dvh flex flex-col items-center justify-center bg-[rgb(var(--bg-primary))]"
+        role="status"
+      >
+        <Loader2 className="h-10 w-10 animate-spin text-accent-500 mb-4" aria-hidden />
         <p className="text-sm text-[rgb(var(--fg-muted))] animate-pulse">
           Загрузка приложения...
         </p>
@@ -128,6 +154,7 @@ function AppRouter() {
 
   return (
     <AppLayout>
+      <OnboardingModal />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -135,6 +162,10 @@ function AppRouter() {
           <Route path="/kanban" element={<KanbanPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/gallery" element={<GalleryPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/trash" element={<TrashPage />} />
+          <Route path="/workspace" element={<WorkspacePage />} />
+          <Route path="/automations" element={<AutomationsPage />} />
           <Route path="/create" element={<ContestCreate />} />
           <Route path="/contest/:id" element={<ContestDetailPage />} />
           <Route path="/contest/:id/edit" element={<ContestEdit />} />
@@ -152,6 +183,12 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter basename="/concurio/">
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:bg-accent-500 focus:text-white focus:px-3 focus:py-2 focus:rounded-lg"
+          >
+            Перейти к содержимому
+          </a>
           <AppRouter />
           <Toaster />
         </BrowserRouter>

@@ -37,6 +37,9 @@ export interface Contest {
   parent_id: string | null;
   recurrence: RecurrenceRule;
   recurrence_until: string | null;
+  workspace_id: string | null;
+  deleted_at: string | null;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +62,7 @@ export interface ContestInsert {
   parent_id?: string | null;
   recurrence?: RecurrenceRule;
   recurrence_until?: string | null;
+  workspace_id?: string | null;
 }
 
 /** Данные для обновления */
@@ -76,6 +80,9 @@ export interface ContestUpdate {
   parent_id?: string | null;
   recurrence?: RecurrenceRule;
   recurrence_until?: string | null;
+  workspace_id?: string | null;
+  deleted_at?: string | null;
+  completed_at?: string | null;
 }
 
 // ========================
@@ -216,3 +223,77 @@ export interface ActivityEvent {
 }
 
 export type ViewMode = 'list' | 'kanban' | 'calendar';
+
+// ========================
+// Workspace / Platform
+// ========================
+
+export type WorkspaceRole = 'owner' | 'member' | 'viewer';
+
+export interface Workspace {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at: string;
+}
+
+export interface WorkspaceMember {
+  workspace_id: string;
+  user_id: string;
+  role: WorkspaceRole;
+  created_at: string;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  workspace_id: string;
+  token: string;
+  email: string | null;
+  role: 'member' | 'viewer';
+  created_by: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_at: string;
+}
+
+export type HomeWidgetId =
+  'stats' | 'deadlines' | 'list' | 'heatmap' | 'analytics' | 'activity';
+
+export interface UserPreferences {
+  user_id: string;
+  widgets: HomeWidgetId[];
+  onboarding_done: boolean;
+  updated_at: string;
+}
+
+export interface AutomationRule {
+  id: string;
+  user_id: string;
+  workspace_id: string | null;
+  name: string;
+  enabled: boolean;
+  trigger_on: 'on_create' | 'on_update' | 'on_status';
+  conditions: {
+    title_contains?: string;
+    task_type?: TaskType;
+    priority?: TaskPriority;
+    tag?: string;
+  };
+  actions: {
+    add_tags?: string[];
+    set_status?: ContestStatus;
+    set_priority?: TaskPriority;
+  };
+  created_at: string;
+}
+
+export interface AnalyticsBundle {
+  onTimeRate: number;
+  leadTimeDaysAvg: number;
+  byType: { type: string; count: number }[];
+  velocity: { week: string; completed: number }[];
+  burndown: { week: string; remaining: number; ideal: number }[];
+  completed: number;
+  overdue: number;
+  total: number;
+}

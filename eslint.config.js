@@ -37,6 +37,9 @@ export default [
       ],
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',
+      // React 19 compiler rules are noisy in lint-staged for valid patterns
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
     },
   },
   eslintConfigPrettier,

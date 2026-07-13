@@ -14,6 +14,8 @@ const navLinks = [
   { path: '/', label: 'Задачи' },
   { path: '/kanban', label: 'Канбан' },
   { path: '/calendar', label: 'Календарь' },
+  { path: '/analytics', label: 'Аналитика' },
+  { path: '/workspace', label: 'Команда' },
   { path: '/gallery', label: 'Файлы' },
 ];
 
@@ -39,7 +41,8 @@ export function Header() {
             'max-w-5xl mx-auto flex items-center justify-between gap-2',
             'h-12 sm:h-14',
             'px-3 sm:px-4',
-            isTg && 'px-[max(0.75rem,var(--tg-safe-left,0px))] pr-[max(0.75rem,var(--tg-safe-right,0px))]'
+            isTg &&
+              'px-[max(0.75rem,var(--tg-safe-left,0px))] pr-[max(0.75rem,var(--tg-safe-right,0px))]'
           )}
         >
           <Link to="/" className="flex items-center gap-2 shrink-0 min-w-0">

@@ -13,7 +13,7 @@ import {
   fetchSubtasks,
   createContest,
   updateContest,
-  deleteContest,
+  softDeleteContest,
   fetchDashboardStats,
   fetchActivityHeatmap,
   contestsToCsv,
@@ -21,6 +21,11 @@ import {
   csvToContestInserts,
   importContests,
 } from '@/services/contestService';
+import {
+  applyRulesToInsert,
+  applyRulesToUpdate,
+  fetchAutomationRules,
+} from '@/services/automationService';
 import { fetchAttachments } from '@/services/attachmentService';
 import { contestsToIcs, downloadIcs } from '@/lib/ics';
 import { spawnNextOccurrence } from '@/lib/recurrence';
@@ -42,6 +47,7 @@ export function useContests() {
     priorityFilter,
     sortBy,
     sortOrder,
+    activeWorkspaceId,
   } = useAppStore();
 
   return useQuery({
@@ -54,6 +60,7 @@ export function useContests() {
       priorityFilter,
       sortBy,
       sortOrder,
+      activeWorkspaceId,
     ],
     queryFn: (): Promise<Contest[]> =>
       fetchContests({
@@ -65,6 +72,7 @@ export function useContests() {
         sortBy,
         sortOrder,
         rootOnly: true,
+        workspaceId: activeWorkspaceId,
       }),
     staleTime: 30_000,
   });
@@ -113,6 +121,7 @@ export function useActivityHeatmap(days = 84) {
 
 export function useCreateContest() {
   const queryClient = useQueryClient();
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
 
   return useMutation({
     mutationFn: async (input: ContestInsert): Promise<Contest> => {
@@ -128,11 +137,17 @@ export function useCreateContest() {
       const user = session?.user;
       if (!user) throw new Error('Не авторизован');
 
-      return createContest(input, user.id);
+      const rules = await fetchAutomationRules();
+      let payload = applyRulesToInsert(rules, input, 'on_create');
+      if (activeWorkspaceId && !payload.workspace_id) {
+        payload = { ...payload, workspace_id: activeWorkspaceId };
+      }
+      return createContest(payload, user.id);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.stats });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       if (data.parent_id) {
         queryClient.invalidateQueries({
           queryKey: ['subtasks', data.parent_id],
@@ -150,21 +165,16 @@ export function useUpdateContest() {
       id,
       ...updates
     }: ContestUpdate & { id: string }): Promise<Contest> => {
-      // Перед сменой статуса — читаем текущую запись (для recurrence)
-      let prev: Contest | null = null;
-      if (updates.status === 'done') {
-        try {
-          prev = await fetchContestById(id);
-        } catch {
-          prev = null;
-        }
-      }
+      const prev = await fetchContestById(id).catch(() => null);
 
-      const updated = await updateContest(id, updates);
+      const rules = await fetchAutomationRules();
+      const patched = prev != null ? applyRulesToUpdate(rules, prev, updates) : updates;
+
+      const updated = await updateContest(id, patched);
 
       // Автосоздание следующего повтора при завершении
       if (
-        updates.status === 'done' &&
+        patched.status === 'done' &&
         prev &&
         prev.status !== 'done' &&
         prev.recurrence &&
@@ -203,12 +213,14 @@ export function useDeleteContest() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      await deleteContest(id);
+      // Мягкое удаление → корзина
+      await softDeleteContest(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.stats });
       queryClient.invalidateQueries({ queryKey: ['subtasks'] });
+      queryClient.invalidateQueries({ queryKey: ['trash'] });
     },
   });
 }

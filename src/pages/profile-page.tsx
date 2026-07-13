@@ -36,7 +36,8 @@ export function ProfilePage() {
   }
 
   const isTelegramLinked = Boolean(user.telegram_id);
-  const authMethodLabel = user.auth_provider === 'telegram' || isTelegramLinked ? 'Telegram' : 'Email';
+  const authMethodLabel =
+    user.auth_provider === 'telegram' || isTelegramLinked ? 'Telegram' : 'Email';
   const isInTelegram = isTelegramApp();
 
   const runAction = async (action: () => Promise<boolean>, successText: string) => {
@@ -97,7 +98,12 @@ export function ProfilePage() {
     <div className="space-y-6 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4">
         {!isTelegramApp() && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-9 w-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="shrink-0 h-9 w-9"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
@@ -117,7 +123,9 @@ export function ProfilePage() {
           </div>
           <div className="flex items-center justify-between border-t border-[rgb(var(--border-default))] pt-3">
             <span className="text-sm text-[rgb(var(--fg-secondary))]">Telegram</span>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isTelegramLinked ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${isTelegramLinked ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
+            >
               {isTelegramLinked ? 'Привязан' : 'Не привязан'}
             </span>
           </div>
@@ -130,6 +138,18 @@ export function ProfilePage() {
               <FolderOpen className="h-4 w-4 text-accent-500" />
               Галерея файлов
             </Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 justify-start gap-2">
+            <Link to="/analytics">Аналитика</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 justify-start gap-2">
+            <Link to="/workspace">Команда</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 justify-start gap-2">
+            <Link to="/automations">Автоправила</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 justify-start gap-2">
+            <Link to="/trash">Корзина</Link>
           </Button>
           <div className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-default))] px-3 h-11">
             <span className="text-sm text-[rgb(var(--fg-secondary))] shrink-0">Тема</span>
@@ -144,25 +164,40 @@ export function ProfilePage() {
         )}
 
         <div className="space-y-3">
-          <Button type="button" className="w-full justify-start gap-2" onClick={handleLinkTelegram} disabled={busy || isLoading}>
+          <Button
+            type="button"
+            className="w-full justify-start gap-2"
+            onClick={handleLinkTelegram}
+            disabled={busy || isLoading}
+          >
             <Link2 className="h-4 w-4" />
             {isTelegramLinked ? 'Перепривязать Telegram' : 'Привязать Telegram'}
           </Button>
 
           {isTelegramLinked && (
-            <Button type="button" variant="outline" className="w-full justify-start gap-2" onClick={handleUnlinkTelegram} disabled={busy || isLoading}>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handleUnlinkTelegram}
+              disabled={busy || isLoading}
+            >
               <Unlink2 className="h-4 w-4" />
               Отвязать Telegram
             </Button>
           )}
 
-          <form onSubmit={handleSetPassword} className="space-y-3 rounded-2xl border border-[rgb(var(--border-default))] p-5">
+          <form
+            onSubmit={handleSetPassword}
+            className="space-y-3 rounded-2xl border border-[rgb(var(--border-default))] p-5"
+          >
             <div className="flex items-center gap-2 text-sm font-medium">
               <Mail className="h-4 w-4" />
               Вход по email и паролю
             </div>
             <p className="text-sm text-[rgb(var(--fg-secondary))]">
-              Установите пароль, чтобы позже входить через email даже если аккаунт был создан через Telegram.
+              Установите пароль, чтобы позже входить через email даже если аккаунт был
+              создан через Telegram.
             </p>
             <Input
               type="password"
@@ -171,14 +206,25 @@ export function ProfilePage() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={busy || isLoading}
             />
-            <Button type="submit" variant="outline" className="w-full gap-2" disabled={busy || isLoading}>
+            <Button
+              type="submit"
+              variant="outline"
+              className="w-full gap-2"
+              disabled={busy || isLoading}
+            >
               <ShieldCheck className="h-4 w-4" />
               Установить пароль
             </Button>
           </form>
         </div>
 
-        <Button type="button" variant="destructive" className="w-full gap-2" onClick={handleSignOut} disabled={busy || isLoading}>
+        <Button
+          type="button"
+          variant="destructive"
+          className="w-full gap-2"
+          onClick={handleSignOut}
+          disabled={busy || isLoading}
+        >
           <LogOut className="h-4 w-4" />
           Выйти из профиля
         </Button>

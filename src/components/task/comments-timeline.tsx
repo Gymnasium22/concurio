@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import {
-  useActivity,
-  useCommentMutations,
-  useComments,
-} from '@/hooks/use-task-extras';
+import { useActivity, useCommentMutations, useComments } from '@/hooks/use-task-extras';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Trash2, Clock, Loader2 } from 'lucide-react';
@@ -17,6 +13,7 @@ const ACTION_LABELS: Record<string, string> = {
   checklist_remove: 'Пункт удалён',
   comment_add: 'Добавлен комментарий',
   comment_remove: 'Комментарий удалён',
+  mention: 'Упоминание @',
   status_change: 'Изменён статус',
   progress_change: 'Изменён прогресс',
   created: 'Задача создана',
@@ -70,12 +67,17 @@ export function CommentsTimeline({ contestId }: { contestId: string }) {
         <div className="space-y-4">
           <form onSubmit={handleAdd} className="space-y-2">
             <Textarea
-              placeholder="Напишите комментарий..."
+              placeholder="Комментарий… Можно @mention (uuid коллеги)"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               className="min-h-[80px]"
+              aria-label="Текст комментария"
             />
-            <Button type="submit" size="sm" disabled={addComment.isPending || !body.trim()}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={addComment.isPending || !body.trim()}
+            >
               Отправить
             </Button>
           </form>

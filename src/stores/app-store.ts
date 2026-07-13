@@ -36,6 +36,10 @@ interface AppState {
   // UI
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
+
+  /** Активный workspace (null = личные) */
+  activeWorkspaceId: string | null;
+  setActiveWorkspaceId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -71,6 +75,9 @@ export const useAppStore = create<AppState>()(
       // UI
       isMobileMenuOpen: false,
       setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
+
+      activeWorkspaceId: null,
+      setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
     }),
     {
       name: 'concurio-settings',
@@ -80,6 +87,7 @@ export const useAppStore = create<AppState>()(
         sortBy: state.sortBy,
         sortOrder: state.sortOrder,
         hideCompleted: state.hideCompleted,
+        activeWorkspaceId: state.activeWorkspaceId,
       }),
     }
   )
@@ -108,7 +116,8 @@ function applyTheme(theme: ThemeMode): void {
 
 // Инициализация темы при загрузке
 if (typeof window !== 'undefined') {
-  const savedTheme = (JSON.parse(localStorage.getItem('concurio-settings') || '{}')?.state?.theme ?? 'system') as ThemeMode;
+  const savedTheme = (JSON.parse(localStorage.getItem('concurio-settings') || '{}')?.state
+    ?.theme ?? 'system') as ThemeMode;
   applyTheme(savedTheme);
 
   // Слушаем изменения системной темы

@@ -25,6 +25,9 @@ export interface ContestListFilters {
   /** Если true — только корневые (без подзадач) */
   rootOnly?: boolean;
   parentId?: string | null;
+  workspaceId?: string | null;
+  /** trash = only deleted; active = not deleted (default) */
+  trash?: boolean;
 }
 
 export function normalizeContest(row: Record<string, unknown>): Contest {
@@ -38,24 +41,35 @@ export function normalizeContest(row: Record<string, unknown>): Contest {
     parent_id: (row.parent_id as string | null) ?? null,
     recurrence: (row.recurrence as Contest['recurrence']) ?? 'none',
     recurrence_until: (row.recurrence_until as string | null) ?? null,
+    workspace_id: (row.workspace_id as string | null) ?? null,
+    deleted_at: (row.deleted_at as string | null) ?? null,
+    completed_at: (row.completed_at as string | null) ?? null,
   };
 }
 
-export async function fetchContests(
-  filters: ContestListFilters
-): Promise<Contest[]> {
+export async function fetchContests(filters: ContestListFilters): Promise<Contest[]> {
   let query = supabase.from('contests').select('*');
+
+  if (filters.trash) {
+    query = query.not('deleted_at', 'is', null);
+  } else {
+    // soft-delete: активные (колонка может отсутствовать до миграции 007)
+    query = query.is('deleted_at', null);
+  }
+
+  if (filters.workspaceId) {
+    query = query.eq('workspace_id', filters.workspaceId);
+  }
 
   if (filters.parentId) {
     query = query.eq('parent_id', filters.parentId);
   } else if (filters.rootOnly !== false) {
-    // По умолчанию скрываем подзадачи в общем списке
     query = query.is('parent_id', null);
   }
 
   if (filters.statusFilter !== 'all') {
     query = query.eq('status', filters.statusFilter);
-  } else if (filters.hideCompleted) {
+  } else if (filters.hideCompleted && !filters.trash) {
     query = query.not('status', 'in', '(done,cancelled)');
   }
 
@@ -71,19 +85,22 @@ export async function fetchContests(
     query = query.ilike('title', `%${filters.searchQuery.trim()}%`);
   }
 
-  const serverSort =
-    filters.sortBy === 'priority' ? 'due_date' : filters.sortBy;
+  const serverSort = filters.sortBy === 'priority' ? 'due_date' : filters.sortBy;
   query = query.order(serverSort, {
     ascending: filters.sortOrder === 'asc',
     nullsFirst: false,
   });
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  if (error) {
+    // Fallback без deleted_at (миграция ещё не применена)
+    if (/deleted_at|column/i.test(error.message)) {
+      return fetchContestsLegacy(filters);
+    }
+    throw new Error(error.message);
+  }
 
-  let rows = (data ?? []).map((r) =>
-    normalizeContest(r as Record<string, unknown>)
-  );
+  let rows = (data ?? []).map((r) => normalizeContest(r as Record<string, unknown>));
 
   if (filters.sortBy === 'priority') {
     const weight: Record<string, number> = {
@@ -99,6 +116,52 @@ export async function fetchContests(
   }
 
   return rows;
+}
+
+/** Старый API без soft-delete колонок */
+async function fetchContestsLegacy(filters: ContestListFilters): Promise<Contest[]> {
+  let query = supabase.from('contests').select('*');
+  if (filters.parentId) query = query.eq('parent_id', filters.parentId);
+  else if (filters.rootOnly !== false) query = query.is('parent_id', null);
+  if (filters.statusFilter !== 'all') query = query.eq('status', filters.statusFilter);
+  else if (filters.hideCompleted) query = query.not('status', 'in', '(done,cancelled)');
+  if (filters.taskTypeFilter !== 'all')
+    query = query.eq('task_type', filters.taskTypeFilter);
+  if (filters.priorityFilter !== 'all')
+    query = query.eq('priority', filters.priorityFilter);
+  if (filters.searchQuery.trim())
+    query = query.ilike('title', `%${filters.searchQuery.trim()}%`);
+  const serverSort = filters.sortBy === 'priority' ? 'due_date' : filters.sortBy;
+  query = query.order(serverSort, {
+    ascending: filters.sortOrder === 'asc',
+    nullsFirst: false,
+  });
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => normalizeContest(r as Record<string, unknown>));
+}
+
+export async function softDeleteContest(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('contests')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) {
+    // fallback hard delete
+    if (/deleted_at|column/i.test(error.message)) {
+      await deleteContest(id);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function restoreContest(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('contests')
+    .update({ deleted_at: null })
+    .eq('id', id);
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchContestById(id: string): Promise<Contest> {
@@ -118,9 +181,7 @@ export async function fetchSubtasks(parentId: string): Promise<Contest[]> {
     .eq('parent_id', parentId)
     .order('created_at', { ascending: true });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) =>
-    normalizeContest(r as Record<string, unknown>)
-  );
+  return (data ?? []).map((r) => normalizeContest(r as Record<string, unknown>));
 }
 
 export async function createContest(
@@ -170,9 +231,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
   return {
     total: contests.filter((c) => !c.parent_id).length,
-    completed: contests.filter(
-      (c) => !c.parent_id && c.status === 'done'
-    ).length,
+    completed: contests.filter((c) => !c.parent_id && c.status === 'done').length,
     overdue: contests.filter(
       (c) =>
         !c.parent_id &&
@@ -182,9 +241,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
         c.status !== 'cancelled'
     ).length,
     inProgress: contests.filter(
-      (c) =>
-        !c.parent_id &&
-        (c.status === 'in_progress' || c.status === 'review')
+      (c) => !c.parent_id && (c.status === 'in_progress' || c.status === 'review')
     ).length,
     completedThisWeek: contests.filter(
       (c) =>
@@ -202,12 +259,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
         c.status !== 'done' &&
         c.status !== 'cancelled'
     ).length,
-    contests: contests.filter(
-      (c) => !c.parent_id && c.task_type === 'contest'
-    ).length,
-    tasks: contests.filter(
-      (c) => !c.parent_id && c.task_type !== 'contest'
-    ).length,
+    contests: contests.filter((c) => !c.parent_id && c.task_type === 'contest').length,
+    tasks: contests.filter((c) => !c.parent_id && c.task_type !== 'contest').length,
   };
 }
 
@@ -371,13 +424,7 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-const STATUS_SET = new Set([
-  'todo',
-  'in_progress',
-  'review',
-  'done',
-  'cancelled',
-]);
+const STATUS_SET = new Set(['todo', 'in_progress', 'review', 'done', 'cancelled']);
 const TYPE_SET = new Set(['contest', 'task', 'personal', 'reminder']);
 const PRIORITY_SET = new Set(['low', 'medium', 'high', 'urgent']);
 const RECUR_SET = new Set(['none', 'daily', 'weekly', 'monthly']);
@@ -445,7 +492,7 @@ export function csvToContestInserts(text: string): ContestInsert[] {
       return (cells[i] ?? '').trim();
     };
 
-    let title =
+    const title =
       titleIdx >= 0 ? (cells[titleIdx] ?? '').trim() : (cells[0] ?? '').trim();
     if (!title) continue;
 
@@ -527,10 +574,7 @@ export async function importContests(
   let created = 0;
   for (let i = 0; i < rows.length; i += 50) {
     const chunk = rows.slice(i, i + 50);
-    const { data, error } = await supabase
-      .from('contests')
-      .insert(chunk)
-      .select('id');
+    const { data, error } = await supabase.from('contests').insert(chunk).select('id');
     if (error) throw new Error(error.message);
     created += data?.length ?? chunk.length;
   }

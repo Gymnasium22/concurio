@@ -5,12 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { QUERY_KEYS } from '@/lib/constants';
-import type {
-  ActivityEvent,
-  ChecklistItem,
-  ContestStatus,
-  TaskComment,
-} from '@/types';
+import type { ActivityEvent, ChecklistItem, ContestStatus, TaskComment } from '@/types';
 
 export async function logActivity(
   contestId: string,
@@ -235,17 +230,44 @@ export function useCommentMutations(contestId: string) {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Не авторизован');
 
+      const text = body.trim();
       const { data, error } = await supabase
         .from('task_comments')
         .insert({
           contest_id: contestId,
           user_id: user.id,
-          body: body.trim(),
+          body: text,
         })
         .select()
         .single();
       if (error) throw new Error(error.message);
-      await logActivity(contestId, 'comment_add', { preview: body.trim().slice(0, 80) });
+
+      // @mentions: @username или @uuid
+      const mentions = [...text.matchAll(/@([a-zA-Z0-9_-]{2,64})/g)].map((m) => m[1]!);
+      if (mentions.length) {
+        await logActivity(contestId, 'mention', {
+          handles: mentions,
+          comment_id: (data as TaskComment).id,
+        });
+        // best-effort: если handle = uuid, пишем в comment_mentions
+        for (const handle of mentions) {
+          if (
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              handle
+            )
+          ) {
+            await supabase.from('comment_mentions').insert({
+              comment_id: (data as TaskComment).id,
+              mentioned_user_id: handle,
+            });
+          }
+        }
+      }
+
+      await logActivity(contestId, 'comment_add', {
+        preview: text.slice(0, 80),
+        mentions,
+      });
       return data as TaskComment;
     },
     onSuccess: () => {

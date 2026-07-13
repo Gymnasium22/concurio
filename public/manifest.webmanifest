@@ -1,0 +1,19 @@
+{
+  "name": "Concurio",
+  "short_name": "Concurio",
+  "description": "Трекер задач и конкурсов",
+  "start_url": "/concurio/",
+  "scope": "/concurio/",
+  "display": "standalone",
+  "background_color": "#0c0c14",
+  "theme_color": "#7850ff",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/concurio/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

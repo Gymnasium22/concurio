@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /*
  * =============================================
@@ -27,7 +27,7 @@
   --color-danger: oklch(0.65 0.22 25);
   --color-warning: oklch(0.78 0.16 70);
   --color-success: oklch(0.72 0.19 155);
-  --color-info: oklch(0.70 0.14 230);
+  --color-info: oklch(0.7 0.14 230);
 
   /* Animations */
   --animate-fade-in: fade-in 0.4s ease-out;
@@ -92,29 +92,78 @@
 
 /* ---------- Keyframe Animations ---------- */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ---------- A11y helpers ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+.sr-only:focus,
+.focus\:not-sr-only:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
 }
 
 /* ---------- Base Styles ---------- */
 @layer base {
   * {
     border-color: rgb(var(--border-default));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent-rgb, 120 80 255));
+    outline-offset: 2px;
   }
 
   html {
@@ -179,7 +228,10 @@
     overflow-x: hidden;
   }
 
-  img, video, canvas, svg {
+  img,
+  video,
+  canvas,
+  svg {
     max-width: 100%;
     height: auto;
   }
@@ -235,7 +287,7 @@
 
   /* Text gradient */
   .text-gradient {
-    background: linear-gradient(135deg, rgb(var(--accent-rgb)), oklch(0.70 0.22 330));
+    background: linear-gradient(135deg, rgb(var(--accent-rgb)), oklch(0.7 0.22 330));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -243,15 +295,27 @@
 
   /* Accent glow */
   .glow-accent {
-    box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.3), 0 0 60px rgb(var(--accent-rgb) / 0.1);
+    box-shadow:
+      0 0 20px rgb(var(--accent-rgb) / 0.3),
+      0 0 60px rgb(var(--accent-rgb) / 0.1);
   }
 
   /* Status colors */
-  .status-todo { color: rgb(var(--fg-secondary)); }
-  .status-in_progress { color: oklch(0.70 0.14 230); }
-  .status-review { color: oklch(0.78 0.16 70); }
-  .status-done { color: oklch(0.72 0.19 155); }
-  .status-cancelled { color: oklch(0.65 0.22 25); }
+  .status-todo {
+    color: rgb(var(--fg-secondary));
+  }
+  .status-in_progress {
+    color: oklch(0.7 0.14 230);
+  }
+  .status-review {
+    color: oklch(0.78 0.16 70);
+  }
+  .status-done {
+    color: oklch(0.72 0.19 155);
+  }
+  .status-cancelled {
+    color: oklch(0.65 0.22 25);
+  }
 
   /* Горизонтальный скролл без полосы (канбан, чипы) */
   .no-scrollbar {

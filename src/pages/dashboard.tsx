@@ -1,7 +1,7 @@
 /**
  * Dashboard — задачи сверху, компактный обзор, без «пустоты» слева
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   useContests,
   useDashboardStats,
@@ -33,11 +33,14 @@ import { downloadTasksPdfReport } from '@/lib/pdf-report';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppStore } from '@/stores/app-store';
+import { usePreferences, useSavePreferences } from '@/hooks/use-platform';
+import type { HomeWidgetId } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
 
 const PAGE_SIZE = 20;
@@ -54,15 +57,29 @@ export function Dashboard() {
   const priorityFilter = useAppStore((s) => s.priorityFilter);
 
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [pageExtra, setPageExtra] = useState(0);
   const [showMoreStats, setShowMoreStats] = useState(false);
   const importCsv = useImportContestsCsv();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: prefs } = usePreferences();
+  const savePrefs = useSavePreferences();
+  const widgets = prefs?.widgets ?? ['stats', 'deadlines', 'list', 'heatmap'];
 
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [searchQuery, statusFilter, hideCompleted, taskTypeFilter, priorityFilter]);
+  const toggleWidget = (id: HomeWidgetId) => {
+    const next = widgets.includes(id)
+      ? widgets.filter((w) => w !== id)
+      : [...widgets, id];
+    void savePrefs.mutateAsync({ widgets: next.length ? next : ['list'] });
+  };
 
+  const filterKey = `${searchQuery}|${statusFilter}|${hideCompleted}|${taskTypeFilter}|${priorityFilter}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
+    setPageExtra(0);
+  }
+
+  const visibleCount = PAGE_SIZE + pageExtra;
   const visibleContests = useMemo(
     () => (contests ?? []).slice(0, visibleCount),
     [contests, visibleCount]
@@ -211,89 +228,129 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Компактный обзор — одна полоса */}
-      <StatsCards />
+      {widgets.includes('stats') && <StatsCards />}
+      {widgets.includes('deadlines') && <DeadlineStrip />}
 
-      {/* Дедлайны горизонтально — не толкают список вниз */}
-      <DeadlineStrip />
+      {widgets.includes('analytics') && (
+        <div className="glass rounded-2xl p-3 border border-[rgb(var(--border-default))] text-sm flex justify-between items-center">
+          <span className="text-[rgb(var(--fg-secondary))]">
+            Мини-аналитика на главной
+          </span>
+          <Link to="/analytics" className="text-accent-500 font-medium hover:underline">
+            Открыть →
+          </Link>
+        </div>
+      )}
 
       {/* Фильтры + список сразу */}
       <div className="space-y-3 pt-1">
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-xs h-8">
+                Виджеты
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(
+                [
+                  ['stats', 'Статистика'],
+                  ['deadlines', 'Дедлайны'],
+                  ['list', 'Список'],
+                  ['heatmap', 'Активность'],
+                  ['analytics', 'Ссылка на аналитику'],
+                ] as const
+              ).map(([id, label]) => (
+                <DropdownMenuCheckboxItem
+                  key={id}
+                  checked={widgets.includes(id)}
+                  onCheckedChange={() => toggleWidget(id)}
+                >
+                  {label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
         <ContestFilters compact />
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="min-h-[132px] rounded-2xl" />
-            ))}
-          </div>
-        ) : !contests || contests.length === 0 ? (
-          <div className="glass-subtle p-10 rounded-3xl flex flex-col items-center text-center border-dashed border-2 border-[rgb(var(--border-default))]">
-            <div className="h-14 w-14 rounded-full bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center mb-3">
-              <ListTodo className="h-7 w-7 text-accent-500" />
+        {widgets.includes('list') &&
+          (isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="min-h-[132px] rounded-2xl" />
+              ))}
             </div>
-            <h3 className="text-lg font-bold mb-1">
-              {hideCompleted ? 'Нет активных задач' : 'Пока пусто'}
-            </h3>
-            <p className="text-sm text-[rgb(var(--fg-secondary))] mb-5 max-w-sm">
-              {hideCompleted
-                ? 'Всё сделано — или покажите готовые (иконка глаза).'
-                : 'Создайте первую задачу.'}
-            </p>
-            <Link to="/create">
-              <Button className="gap-2 min-h-[44px]">
-                <Plus className="h-4 w-4" />
-                Создать
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch auto-rows-fr"
-              layout
-            >
-              <AnimatePresence mode="popLayout">
-                {visibleContests.map((contest, index) => (
-                  <ContestCard key={contest.id} contest={contest} index={index} />
-                ))}
-              </AnimatePresence>
-            </motion.div>
-            {hasMore && (
-              <div className="flex justify-center pt-1">
-                <Button
-                  variant="outline"
-                  className="min-h-[44px] w-full sm:w-auto"
-                  onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
-                >
-                  Ещё {(contests?.length ?? 0) - visibleCount}
-                </Button>
+          ) : !contests || contests.length === 0 ? (
+            <div className="glass-subtle p-10 rounded-3xl flex flex-col items-center text-center border-dashed border-2 border-[rgb(var(--border-default))]">
+              <div className="h-14 w-14 rounded-full bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center mb-3">
+                <ListTodo className="h-7 w-7 text-accent-500" />
               </div>
-            )}
-          </div>
-        )}
+              <h3 className="text-lg font-bold mb-1">
+                {hideCompleted ? 'Нет активных задач' : 'Пока пусто'}
+              </h3>
+              <p className="text-sm text-[rgb(var(--fg-secondary))] mb-5 max-w-sm">
+                {hideCompleted
+                  ? 'Всё сделано — или покажите готовые (иконка глаза).'
+                  : 'Создайте первую задачу.'}
+              </p>
+              <Link to="/create">
+                <Button className="gap-2 min-h-[44px]">
+                  <Plus className="h-4 w-4" />
+                  Создать
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <motion.div
+                className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch auto-rows-fr"
+                layout
+              >
+                <AnimatePresence mode="popLayout">
+                  {visibleContests.map((contest, index) => (
+                    <ContestCard key={contest.id} contest={contest} index={index} />
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+              {hasMore && (
+                <div className="flex justify-center pt-1">
+                  <Button
+                    variant="outline"
+                    className="min-h-[44px] w-full sm:w-auto"
+                    onClick={() => setPageExtra((n) => n + PAGE_SIZE)}
+                  >
+                    Ещё {(contests?.length ?? 0) - visibleCount}
+                  </Button>
+                </div>
+              )}
+            </div>
+          ))}
       </div>
 
-      {/* Аналитика — внизу, по желанию */}
-      <div className="pt-2 border-t border-[rgb(var(--border-default))]">
-        <button
-          type="button"
-          onClick={() => setShowMoreStats((v) => !v)}
-          className="flex w-full items-center justify-between py-2 text-sm font-medium text-[rgb(var(--fg-secondary))] hover:text-[rgb(var(--fg-primary))]"
-        >
-          <span>Активность</span>
-          {showMoreStats ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
+      {widgets.includes('heatmap') && (
+        <div className="pt-2 border-t border-[rgb(var(--border-default))]">
+          <button
+            type="button"
+            onClick={() => setShowMoreStats((v) => !v)}
+            className="flex w-full items-center justify-between py-2 text-sm font-medium text-[rgb(var(--fg-secondary))] hover:text-[rgb(var(--fg-primary))]"
+            aria-expanded={showMoreStats}
+          >
+            <span>Активность</span>
+            {showMoreStats ? (
+              <ChevronUp className="h-4 w-4" aria-hidden />
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+          {showMoreStats && (
+            <div className="pb-2 animate-in fade-in slide-in-from-top-1">
+              <ActivityHeatmap />
+            </div>
           )}
-        </button>
-        {showMoreStats && (
-          <div className="pb-2 animate-in fade-in slide-in-from-top-1">
-            <ActivityHeatmap />
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

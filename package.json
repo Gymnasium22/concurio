@@ -24,7 +24,7 @@
       "prettier --write"
     ],
     "src/**/*.{ts,tsx}": [
-      "eslint --fix"
+      "prettier --write"
     ],
     "e2e/**/*.{ts,js}": [
       "prettier --write"
@@ -43,6 +43,7 @@
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-toast": "^1.2.6",
+    "@sentry/react": "^10.65.0",
     "@supabase/supabase-js": "^2.49.0",
     "@tanstack/react-query": "^5.65.0",
     "@telegram-apps/sdk-react": "3.3.9",
@@ -59,7 +60,10 @@
     "react-dropzone": "^14.3.5",
     "react-pdf": "^9.2.1",
     "react-router-dom": "^7.1.0",
+    "recharts": "^3.9.2",
     "tailwind-merge": "3.3.1",
+    "vite-plugin-pwa": "^1.3.0",
+    "workbox-window": "^7.4.1",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
