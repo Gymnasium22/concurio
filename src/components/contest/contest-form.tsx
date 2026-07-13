@@ -216,8 +216,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
           </SelectContent>
         </Select>
         <p className="text-[11px] text-[rgb(var(--fg-muted))]">
-          Повторяющиеся задачи помечаются правилом; автосоздание копий — в следующих
-          версиях.
+          При статусе «Готово» создаётся следующий экземпляр с новым дедлайном.
         </p>
       </div>
 

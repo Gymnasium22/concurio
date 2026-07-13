@@ -20,6 +20,8 @@ import {
   downloadCsv,
 } from '@/services/contestService';
 import { fetchAttachments } from '@/services/attachmentService';
+import { contestsToIcs, downloadIcs } from '@/lib/ics';
+import { spawnNextOccurrence } from '@/lib/recurrence';
 import type {
   Contest,
   ContestInsert,
@@ -146,7 +148,40 @@ export function useUpdateContest() {
       id,
       ...updates
     }: ContestUpdate & { id: string }): Promise<Contest> => {
-      return updateContest(id, updates);
+      // Перед сменой статуса — читаем текущую запись (для recurrence)
+      let prev: Contest | null = null;
+      if (updates.status === 'done') {
+        try {
+          prev = await fetchContestById(id);
+        } catch {
+          prev = null;
+        }
+      }
+
+      const updated = await updateContest(id, updates);
+
+      // Автосоздание следующего повтора при завершении
+      if (
+        updates.status === 'done' &&
+        prev &&
+        prev.status !== 'done' &&
+        prev.recurrence &&
+        prev.recurrence !== 'none'
+      ) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        if (userId) {
+          try {
+            await spawnNextOccurrence({ ...prev, ...updated }, userId);
+          } catch (e) {
+            console.warn('recurrence spawn failed', e);
+          }
+        }
+      }
+
+      return updated;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
@@ -203,5 +238,17 @@ export function exportContestsCsv(contests: Contest[], filename?: string) {
   downloadCsv(
     filename ?? `concurio-tasks-${new Date().toISOString().slice(0, 10)}.csv`,
     csv
+  );
+}
+
+export function exportContestsIcs(contests: Contest[], filename?: string) {
+  const withDue = contests.filter((c) => c.due_date);
+  if (withDue.length === 0) {
+    throw new Error('Нет задач с дедлайном для календаря');
+  }
+  const ics = contestsToIcs(withDue);
+  downloadIcs(
+    filename ?? `concurio-calendar-${new Date().toISOString().slice(0, 10)}.ics`,
+    ics
   );
 }

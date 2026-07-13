@@ -25,3 +25,7 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Local tooling / Supabase CLI
+supabase/.temp/
+mcps/

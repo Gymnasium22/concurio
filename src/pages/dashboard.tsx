@@ -2,11 +2,12 @@
  * Dashboard — список задач + обзор + PDF-отчёт
  * Канбан и календарь — отдельные экраны (/kanban, /calendar)
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useContests,
   useDashboardStats,
   exportContestsCsv,
+  exportContestsIcs,
 } from '@/hooks/use-contests';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { DeadlineList } from '@/components/dashboard/deadline-list';
@@ -15,13 +16,15 @@ import { ContestFilters } from '@/components/dashboard/contest-filters';
 import { ContestCard } from '@/components/contest/contest-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ListTodo, Plus, FileDown, Table } from 'lucide-react';
+import { ListTodo, Plus, FileDown, Table, CalendarRange } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadTasksPdfReport } from '@/lib/pdf-report';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppStore } from '@/stores/app-store';
+
+const PAGE_SIZE = 20;
 
 export function Dashboard() {
   const { data: contests, isLoading } = useContests();
@@ -30,6 +33,13 @@ export function Dashboard() {
   const { toast } = useToast();
   const hideCompleted = useAppStore((s) => s.hideCompleted);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  const visibleContests = useMemo(
+    () => (contests ?? []).slice(0, visibleCount),
+    [contests, visibleCount]
+  );
+  const hasMore = (contests?.length ?? 0) > visibleCount;
 
   const handlePdf = async () => {
     if (!contests?.length) {
@@ -54,6 +64,22 @@ export function Dashboard() {
     }
     exportContestsCsv(contests);
     toast({ title: 'CSV сохранён', variant: 'success' });
+  };
+
+  const handleIcs = () => {
+    try {
+      if (!contests?.length) {
+        toast({ title: 'Нет задач для экспорта', variant: 'error' });
+        return;
+      }
+      exportContestsIcs(contests);
+      toast({ title: 'Календарь (.ics) сохранён', variant: 'success' });
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : 'Ошибка ICS',
+        variant: 'error',
+      });
+    }
   };
 
   return (
@@ -99,6 +125,15 @@ export function Dashboard() {
             >
               <Table className="h-4 w-4" />
               CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0 min-h-[40px]"
+              onClick={handleIcs}
+            >
+              <CalendarRange className="h-4 w-4" />
+              ICS
             </Button>
             <Button
               variant="outline"
@@ -151,16 +186,28 @@ export function Dashboard() {
             </Link>
           </div>
         ) : (
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch auto-rows-fr"
-            layout
-          >
-            <AnimatePresence mode="popLayout">
-              {contests.map((contest, index) => (
-                <ContestCard key={contest.id} contest={contest} index={index} />
-              ))}
-            </AnimatePresence>
-          </motion.div>
+          <div className="space-y-4">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch auto-rows-fr"
+              layout
+            >
+              <AnimatePresence mode="popLayout">
+                {visibleContests.map((contest, index) => (
+                  <ContestCard key={contest.id} contest={contest} index={index} />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+            {hasMore && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                >
+                  Показать ещё ({(contests?.length ?? 0) - visibleCount})
+                </Button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

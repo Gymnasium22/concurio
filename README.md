@@ -32,10 +32,10 @@
 ## 🗄 Настройка Supabase
 
 1. Создайте проект на [Supabase](https://supabase.com).
-2. Перейдите в SQL Editor и выполните скрипт инициализации БД из файла:
-   `supabase/migrations/001_initial_schema.sql`
-3. Убедитесь, что бакет `attachments` создан в разделе Storage.
-4. Скопируйте URL и `anon key` в ваш `.env.local`.
+2. В SQL Editor выполните миграции из `supabase/migrations/` **по порядку** (`001`…`006`).
+3. Убедитесь, что бакет `attachments` создан в Storage.
+4. Скопируйте URL и `anon key` в `.env` / `.env.local`.
+5. Edge Function `telegram-auth` уже деплоится из репозитория (rate limit + auth).
 
 ## 🌐 Деплой на GitHub Pages
 
