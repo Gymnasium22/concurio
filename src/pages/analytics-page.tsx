@@ -44,11 +44,22 @@ export function AnalyticsPage() {
     );
   }
 
-  if (error || !data) {
+  if (error) {
     return (
-      <p className="text-sm text-red-500">
+      <div className="rounded-2xl border border-red-200 bg-red-50 dark:bg-red-900/20 p-6 text-sm text-red-600">
         {error instanceof Error ? error.message : 'Нет данных'}
-      </p>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="glass-subtle rounded-2xl p-10 text-center border border-dashed">
+        <p className="font-medium">Пока нечего анализировать</p>
+        <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
+          Создайте задачи — появятся графики velocity и burndown
+        </p>
+      </div>
     );
   }
 
@@ -57,6 +68,7 @@ export function AnalyticsPage() {
     name: TASK_TYPE_LABELS[t.type as keyof typeof TASK_TYPE_LABELS] || t.type,
     value: t.count,
   }));
+  const emptyCharts = analytics.total === 0;
 
   const exportPdf = async () => {
     setBusy(true);
@@ -133,6 +145,12 @@ export function AnalyticsPage() {
           </div>
         ))}
       </div>
+
+      {emptyCharts && (
+        <p className="text-sm text-[rgb(var(--fg-muted))] rounded-xl border border-dashed p-4 text-center">
+          Мало данных для графиков — отметьте задачи «Готово», чтобы увидеть velocity
+        </p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass rounded-2xl p-4 border border-[rgb(var(--border-default))]">

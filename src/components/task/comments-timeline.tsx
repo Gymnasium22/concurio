@@ -67,12 +67,15 @@ export function CommentsTimeline({ contestId }: { contestId: string }) {
         <div className="space-y-4">
           <form onSubmit={handleAdd} className="space-y-2">
             <Textarea
-              placeholder="Комментарий… Можно @mention (uuid коллеги)"
+              placeholder="Комментарий… @uuid коллеги для упоминания"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               className="min-h-[80px]"
               aria-label="Текст комментария"
             />
+            <p className="text-[11px] text-[rgb(var(--fg-muted))]">
+              Упоминание: <code className="text-[10px]">@user-id</code> из раздела Команда
+            </p>
             <Button
               type="submit"
               size="sm"
@@ -94,11 +97,25 @@ export function CommentsTimeline({ contestId }: { contestId: string }) {
                   className="rounded-xl border border-[rgb(var(--border-default))] p-3 group"
                 >
                   <div className="flex justify-between gap-2">
-                    <p className="text-sm whitespace-pre-wrap flex-1">{c.body}</p>
+                    <p className="text-sm whitespace-pre-wrap flex-1">
+                      {c.body.split(/(@[a-zA-Z0-9_-]{2,64})/g).map((part, i) =>
+                        part.startsWith('@') ? (
+                          <span
+                            key={i}
+                            className="inline rounded-md bg-accent-100 dark:bg-accent-900/40 text-accent-700 dark:text-accent-300 px-1 font-medium"
+                          >
+                            {part}
+                          </span>
+                        ) : (
+                          <span key={i}>{part}</span>
+                        )
+                      )}
+                    </p>
                     <button
                       type="button"
-                      className="opacity-0 group-hover:opacity-100 text-red-500 shrink-0"
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-red-500 shrink-0 p-1"
                       onClick={() => removeComment.mutate(c.id)}
+                      aria-label="Удалить комментарий"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

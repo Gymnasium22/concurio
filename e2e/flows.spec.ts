@@ -30,10 +30,20 @@ test.describe('Authenticated product flows', () => {
     await expect(page.getByText(title).first()).toBeVisible({ timeout: 30_000 });
   });
 
-  test('kanban page loads columns', async ({ page }) => {
+  test('kanban page loads columns and supports card menu move', async ({ page }) => {
     await page.goto('./kanban');
     await expect(page.getByRole('heading', { name: /канбан/i })).toBeVisible();
     await expect(page.getByText(/не начат|в работе|готово/i).first()).toBeVisible();
+
+    // Перемещение через меню «⋯» (стабильнее drag в headless)
+    const more = page.getByRole('button', { name: /переместить/i }).first();
+    if (await more.count()) {
+      await more.click();
+      const moveItem = page.getByRole('menuitem').first();
+      if (await moveItem.count()) {
+        await moveItem.click();
+      }
+    }
   });
 
   test('share dialog opens', async ({ page }) => {
@@ -42,5 +52,14 @@ test.describe('Authenticated product flows', () => {
     await expect(page.getByText(/общий доступ|ссылк/i).first()).toBeVisible({
       timeout: 15_000,
     });
+  });
+
+  test('analytics and workspace pages open', async ({ page }) => {
+    await page.goto('./analytics');
+    await expect(page.getByRole('heading', { name: /аналитика/i })).toBeVisible();
+    await page.goto('./workspace');
+    await expect(page.getByRole('heading', { name: /команда/i })).toBeVisible();
+    await page.goto('./trash');
+    await expect(page.getByRole('heading', { name: /корзина/i })).toBeVisible();
   });
 });

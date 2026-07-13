@@ -17,6 +17,7 @@ import {
   createAttachment,
   removeAttachment as removeAttachmentService,
 } from '@/services/attachmentService';
+import { assertSafeUpload } from '@/lib/file-safety';
 import type { Attachment } from '@/types';
 
 /** Определить MIME-тип файла (браузер иногда отдаёт пустой type) */
@@ -35,7 +36,11 @@ interface UploadState {
 
 interface UseFileUploadReturn {
   uploadState: UploadState;
-  uploadFiles: (contestId: string, userId: string, files: File[]) => Promise<Attachment[]>;
+  uploadFiles: (
+    contestId: string,
+    userId: string,
+    files: File[]
+  ) => Promise<Attachment[]>;
   removeAttachment: (attachment: Attachment) => Promise<void>;
   validateFiles: (files: File[]) => { valid: File[]; errors: string[] };
 }
@@ -52,82 +57,93 @@ export function useFileUpload(): UseFileUploadReturn {
   /**
    * Валидация файлов перед загрузкой
    */
-  const validateFiles = useCallback((files: File[]): { valid: File[]; errors: string[] } => {
-    const valid: File[] = [];
-    const errors: string[] = [];
-    const acceptedTypes = new Set(Object.keys(ACCEPTED_FILE_TYPES));
-    const allowedExtensions = new Set(
-      Object.values(ACCEPTED_FILE_TYPES).flatMap(exts => exts)
-    );
+  const validateFiles = useCallback(
+    (files: File[]): { valid: File[]; errors: string[] } => {
+      const valid: File[] = [];
+      const errors: string[] = [];
+      const acceptedTypes = new Set(Object.keys(ACCEPTED_FILE_TYPES));
+      const allowedExtensions = new Set(
+        Object.values(ACCEPTED_FILE_TYPES).flatMap((exts) => exts)
+      );
 
-    for (const file of files) {
-      const normalizedName = file.name.toLowerCase();
-      const hasAllowedExtension = Array.from(allowedExtensions).some(ext => normalizedName.endsWith(ext));
-      const hasAllowedMimeType = acceptedTypes.has(file.type);
-      const isAllowedFile = hasAllowedExtension || hasAllowedMimeType;
+      for (const file of files) {
+        try {
+          assertSafeUpload(file);
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : `«${file.name}» заблокирован`);
+          continue;
+        }
 
-      if (!isAllowedFile) {
-        errors.push(
-          `"${file.name}" — неподдерживаемый формат. Допускаются ${ACCEPTED_FILE_LABELS}.`
+        const normalizedName = file.name.toLowerCase();
+        const hasAllowedExtension = Array.from(allowedExtensions).some((ext) =>
+          normalizedName.endsWith(ext)
         );
-        continue;
-      }
-      if (file.size > MAX_FILE_SIZE) {
-        errors.push(
-          `"${file.name}" — файл слишком большой (макс. ${MAX_FILE_SIZE_MB} МБ).`
-        );
-        continue;
-      }
-      valid.push(file);
-    }
+        const hasAllowedMimeType = acceptedTypes.has(file.type);
+        const isAllowedFile = hasAllowedExtension || hasAllowedMimeType;
 
-    return { valid, errors };
-  }, []);
+        if (!isAllowedFile) {
+          errors.push(
+            `"${file.name}" — неподдерживаемый формат. Допускаются ${ACCEPTED_FILE_LABELS}.`
+          );
+          continue;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          errors.push(
+            `"${file.name}" — файл слишком большой (макс. ${MAX_FILE_SIZE_MB} МБ).`
+          );
+          continue;
+        }
+        valid.push(file);
+      }
+
+      return { valid, errors };
+    },
+    []
+  );
 
   /**
    * Загрузить файлы и создать записи в таблице attachments
    */
-  const uploadFiles = useCallback(async (
-    contestId: string,
-    userId: string,
-    files: File[]
-  ): Promise<Attachment[]> => {
-    setUploadState({ isUploading: true, progress: 0, error: null });
+  const uploadFiles = useCallback(
+    async (contestId: string, userId: string, files: File[]): Promise<Attachment[]> => {
+      setUploadState({ isUploading: true, progress: 0, error: null });
 
-    const uploaded: Attachment[] = [];
-    const total = files.length;
+      const uploaded: Attachment[] = [];
+      const total = files.length;
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]!;
-        const attachment = await createAttachment(
-          contestId,
-          userId,
-          file,
-          resolveFileMime(file)
-        );
-        uploaded.push(attachment);
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]!;
+          const attachment = await createAttachment(
+            contestId,
+            userId,
+            file,
+            resolveFileMime(file)
+          );
+          uploaded.push(attachment);
 
-        setUploadState((s) => ({
-          ...s,
-          progress: Math.round(((i + 1) / total) * 100),
-        }));
+          setUploadState((s) => ({
+            ...s,
+            progress: Math.round(((i + 1) / total) * 100),
+          }));
+        }
+
+        setUploadState({ isUploading: false, progress: 100, error: null });
+
+        // Инвалидируем кэш вложений
+        await queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.attachments(contestId),
+        });
+
+        return uploaded;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Ошибка загрузки';
+        setUploadState({ isUploading: false, progress: 0, error: message });
+        return uploaded;
       }
-
-      setUploadState({ isUploading: false, progress: 100, error: null });
-
-      // Инвалидируем кэш вложений
-      await queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.attachments(contestId),
-      });
-
-      return uploaded;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Ошибка загрузки';
-      setUploadState({ isUploading: false, progress: 0, error: message });
-      return uploaded;
-    }
-  }, [queryClient]);
+    },
+    [queryClient]
+  );
 
   /**
    * Мутация удаления вложения
@@ -145,9 +161,12 @@ export function useFileUpload(): UseFileUploadReturn {
     },
   });
 
-  const removeAttachment = useCallback(async (attachment: Attachment) => {
-    await deleteMutation.mutateAsync(attachment);
-  }, [deleteMutation]);
+  const removeAttachment = useCallback(
+    async (attachment: Attachment) => {
+      await deleteMutation.mutateAsync(attachment);
+    },
+    [deleteMutation]
+  );
 
   return {
     uploadState,

@@ -46,6 +46,8 @@ export function AutomationsPage() {
         set_priority: setPriority || undefined,
       },
     });
+    setTitleContains('');
+    setAddTag('');
     toast({ title: 'Правило создано', variant: 'success' });
   };
 
@@ -132,34 +134,47 @@ export function AutomationsPage() {
         </Button>
       </div>
 
-      <ul className="space-y-2">
-        {(rules ?? []).map((r) => (
-          <li
-            key={r.id}
-            className="flex items-start gap-2 rounded-xl border border-[rgb(var(--border-default))] p-3"
-          >
-            <div className="flex-1 min-w-0 text-sm">
-              <p className="font-medium">{r.name}</p>
-              <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
-                {r.trigger_on}
-                {r.conditions.title_contains ? ` · «${r.conditions.title_contains}»` : ''}
-                {r.actions.add_tags?.length
-                  ? ` → теги: ${r.actions.add_tags.join(', ')}`
-                  : ''}
-                {r.actions.set_status ? ` → ${r.actions.set_status}` : ''}
-              </p>
-            </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-red-500"
-              onClick={() => remove.mutate(r.id)}
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--fg-muted))]">
+          Активные правила
+        </p>
+        {!rules?.length && (
+          <div className="rounded-2xl border border-dashed border-[rgb(var(--border-default))] p-8 text-center text-sm text-[rgb(var(--fg-muted))]">
+            Пока нет правил. Пример: название содержит «отчёт» → тег «документы».
+          </div>
+        )}
+        <ul className="space-y-2">
+          {(rules ?? []).map((r) => (
+            <li
+              key={r.id}
+              className="flex items-start gap-2 rounded-xl border border-[rgb(var(--border-default))] p-3 bg-[rgb(var(--bg-card))]"
             >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </li>
-        ))}
-      </ul>
+              <div className="flex-1 min-w-0 text-sm">
+                <p className="font-medium">{r.name}</p>
+                <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                  при создании
+                  {r.conditions.title_contains
+                    ? ` · «${r.conditions.title_contains}»`
+                    : ''}
+                  {r.actions.add_tags?.length
+                    ? ` → теги: ${r.actions.add_tags.join(', ')}`
+                    : ''}
+                  {r.actions.set_status ? ` → ${r.actions.set_status}` : ''}
+                </p>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-red-500 shrink-0"
+                aria-label="Удалить правило"
+                onClick={() => remove.mutate(r.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

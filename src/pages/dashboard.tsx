@@ -33,7 +33,7 @@ import { downloadTasksPdfReport } from '@/lib/pdf-report';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppStore } from '@/stores/app-store';
-import { usePreferences, useSavePreferences } from '@/hooks/use-platform';
+import { usePreferences, useSavePreferences, useWorkspaces } from '@/hooks/use-platform';
 import type { HomeWidgetId } from '@/types';
 import {
   DropdownMenu,
@@ -55,6 +55,9 @@ export function Dashboard() {
   const statusFilter = useAppStore((s) => s.statusFilter);
   const taskTypeFilter = useAppStore((s) => s.taskTypeFilter);
   const priorityFilter = useAppStore((s) => s.priorityFilter);
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
+  const { data: workspaces } = useWorkspaces();
+  const activeWsName = workspaces?.find((w) => w.id === activeWorkspaceId)?.name;
 
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pageExtra, setPageExtra] = useState(0);
@@ -163,6 +166,7 @@ export function Dashboard() {
                       : 'задач'
                 }${hideCompleted ? ' · активные' : ''}`
               : 'Список и быстрые действия'}
+            {activeWsName ? ` · ${activeWsName}` : ''}
           </p>
         </div>
 

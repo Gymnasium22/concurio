@@ -22,24 +22,24 @@ export function ContestDetailPage() {
   const navigate = useNavigate();
   const isTg = isTelegramApp();
   const { toast } = useToast();
-  
+
   const { data: contest, isLoading, error } = useContest(id);
   const deleteMutation = useDeleteContest();
 
   useTelegramBackButton(() => navigate(-1));
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        'Удалить задачу? Подзадачи и вложенные файлы тоже будут удалены.'
-      )
-    ) {
+    if (!confirm('Переместить задачу в корзину? Позже можно восстановить.')) {
       return;
     }
 
     try {
       await deleteMutation.mutateAsync(id!);
-      toast({ title: 'Задача удалена', variant: 'success' });
+      toast({
+        title: 'В корзине',
+        description: 'Можно восстановить в Профиль → Корзина',
+        variant: 'success',
+      });
       navigate('/', { replace: true });
     } catch {
       toast({ title: 'Ошибка удаления', variant: 'error' });
@@ -69,11 +69,19 @@ export function ContestDetailPage() {
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {!isTg && (
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-9 w-9">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="shrink-0 h-9 w-9"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight line-clamp-1" title={contest.title}>
+          <h1
+            className="text-2xl sm:text-3xl font-bold tracking-tight line-clamp-1"
+            title={contest.title}
+          >
             {contest.title}
           </h1>
         </div>
@@ -86,7 +94,13 @@ export function ContestDetailPage() {
                 <Edit className="h-4 w-4" /> Редактировать
               </Button>
             </Link>
-            <Button variant="destructive" size="sm" className="gap-2" onClick={handleDelete} disabled={deleteMutation.isPending}>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-2"
+              onClick={handleDelete}
+              disabled={deleteMutation.isPending}
+            >
               <Trash2 className="h-4 w-4" /> Удалить
             </Button>
           </div>
@@ -101,12 +115,19 @@ export function ContestDetailPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to={`/contest/${contest.id}/edit`} className="w-full flex items-center">
+                  <Link
+                    to={`/contest/${contest.id}/edit`}
+                    className="w-full flex items-center"
+                  >
                     <Edit className="mr-2 h-4 w-4" /> Редактировать
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleDelete} disabled={deleteMutation.isPending} className="text-red-500 focus:text-red-600 focus:bg-red-50">
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  disabled={deleteMutation.isPending}
+                  className="text-red-500 focus:text-red-600 focus:bg-red-50"
+                >
                   <Trash2 className="mr-2 h-4 w-4" /> Удалить
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -114,7 +135,7 @@ export function ContestDetailPage() {
           </div>
         </div>
       </div>
-      
+
       {/* Основной контент */}
       <ContestDetail contest={contest} />
     </div>

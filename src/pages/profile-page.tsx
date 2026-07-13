@@ -11,6 +11,11 @@ import {
   ShieldCheck,
   ArrowLeft,
   FolderOpen,
+  BarChart3,
+  Users,
+  Zap,
+  Archive,
+  LayoutGrid,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
@@ -131,27 +136,35 @@ export function ProfilePage() {
           </div>
         </div>
 
-        {/* Быстрые разделы — особенно на мобиле, где нет desktop-nav */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <Button asChild variant="outline" className="h-11 justify-start gap-2">
-            <Link to="/gallery">
-              <FolderOpen className="h-4 w-4 text-accent-500" />
-              Галерея файлов
-            </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11 justify-start gap-2">
-            <Link to="/analytics">Аналитика</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11 justify-start gap-2">
-            <Link to="/workspace">Команда</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11 justify-start gap-2">
-            <Link to="/automations">Автоправила</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11 justify-start gap-2">
-            <Link to="/trash">Корзина</Link>
-          </Button>
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-default))] px-3 h-11">
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-[rgb(var(--fg-muted))]">
+            Разделы
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ['/gallery', 'Файлы', FolderOpen],
+                ['/analytics', 'Аналитика', BarChart3],
+                ['/workspace', 'Команда', Users],
+                ['/automations', 'Автоправила', Zap],
+                ['/trash', 'Корзина', Archive],
+                ['/kanban', 'Канбан', LayoutGrid],
+              ] as const
+            ).map(([to, label, Icon]) => (
+              <Button
+                key={to}
+                asChild
+                variant="outline"
+                className="h-12 justify-start gap-2 px-3"
+              >
+                <Link to={to}>
+                  <Icon className="h-4 w-4 text-accent-500 shrink-0" />
+                  <span className="truncate text-sm">{label}</span>
+                </Link>
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-default))] px-3 h-12 mt-1">
             <span className="text-sm text-[rgb(var(--fg-secondary))] shrink-0">Тема</span>
             <ThemeToggle />
           </div>
