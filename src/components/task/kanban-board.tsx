@@ -1,6 +1,7 @@
 /**
- * Канбан: колонки по статусам, клик для смены статуса
+ * Канбан: drag-and-drop между колонками + кнопки быстрого переноса
  */
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useContests, useUpdateContestStatus } from '@/hooks/use-contests';
 import { STATUS_LABELS, STATUS_ORDER, STATUS_DEFAULT_PROGRESS } from '@/lib/constants';
@@ -14,6 +15,8 @@ const COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
 export function KanbanBoard() {
   const { data: contests, isLoading } = useContests();
   const updateStatus = useUpdateContestStatus();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropStatus, setDropStatus] = useState<ContestStatus | null>(null);
 
   if (isLoading) {
     return (
@@ -38,14 +41,52 @@ export function KanbanBoard() {
     });
   };
 
+  const onDragStart = (e: React.DragEvent, contest: Contest) => {
+    e.dataTransfer.setData('text/contest-id', contest.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingId(contest.id);
+  };
+
+  const onDragEnd = () => {
+    setDraggingId(null);
+    setDropStatus(null);
+  };
+
+  const onDropColumn = async (status: ContestStatus, e: React.DragEvent) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/contest-id');
+    setDropStatus(null);
+    setDraggingId(null);
+    if (!id) return;
+    const contest = (contests ?? []).find((c) => c.id === id);
+    if (!contest) return;
+    await moveTo(contest, status);
+  };
+
   return (
     <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1 snap-x snap-mandatory touch-pan-x overscroll-x-contain">
       {COLUMNS.map((status) => {
         const items = byStatus(status);
+        const isDropTarget = dropStatus === status;
+
         return (
           <div
             key={status}
-            className="snap-start shrink-0 w-[min(260px,82vw)] sm:w-[280px] flex flex-col rounded-2xl bg-[rgb(var(--bg-secondary))]/80 border border-[rgb(var(--border-default))] max-h-[min(65vh,calc(var(--tg-viewport-stable-height,100dvh)-12rem))]"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDropStatus(status);
+            }}
+            onDragLeave={() => {
+              if (dropStatus === status) setDropStatus(null);
+            }}
+            onDrop={(e) => void onDropColumn(status, e)}
+            className={cn(
+              'snap-start shrink-0 w-[min(260px,82vw)] sm:w-[280px] flex flex-col rounded-2xl bg-[rgb(var(--bg-secondary))]/80 border max-h-[min(65vh,calc(var(--tg-viewport-stable-height,100dvh)-12rem))] transition-colors',
+              isDropTarget
+                ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
+                : 'border-[rgb(var(--border-default))]'
+            )}
           >
             <div className="px-3 py-3 border-b border-[rgb(var(--border-default))] flex items-center justify-between shrink-0 bg-[rgb(var(--bg-secondary))] rounded-t-2xl">
               <h3 className="text-sm font-bold truncate">{STATUS_LABELS[status]}</h3>
@@ -53,18 +94,24 @@ export function KanbanBoard() {
                 {items.length}
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-2 min-h-0">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-2 min-h-[80px]">
               {items.length === 0 && (
                 <p className="text-xs text-center text-[rgb(var(--fg-muted))] py-6">
-                  Пусто
+                  {isDropTarget ? 'Отпустите здесь' : 'Пусто'}
                 </p>
               )}
               {items.map((c) => (
                 <div
                   key={c.id}
-                  className="glass rounded-xl p-3 space-y-2 border border-[rgb(var(--border-default))] hover:border-accent-400/40 transition-colors"
+                  draggable
+                  onDragStart={(e) => onDragStart(e, c)}
+                  onDragEnd={onDragEnd}
+                  className={cn(
+                    'glass rounded-xl p-3 space-y-2 border border-[rgb(var(--border-default))] hover:border-accent-400/40 transition-colors cursor-grab active:cursor-grabbing',
+                    draggingId === c.id && 'opacity-50 scale-[0.98]'
+                  )}
                 >
-                  <Link to={`/contest/${c.id}`} className="block">
+                  <Link to={`/contest/${c.id}`} className="block" draggable={false}>
                     <p className="text-sm font-semibold line-clamp-2 hover:text-accent-500">
                       {c.title}
                     </p>
@@ -88,7 +135,7 @@ export function KanbanBoard() {
                           key={s}
                           type="button"
                           disabled={updateStatus.isPending}
-                          onClick={() => moveTo(c, s)}
+                          onClick={() => void moveTo(c, s)}
                           className={cn(
                             'text-[10px] px-1.5 py-0.5 rounded-md border border-[rgb(var(--border-default))]',
                             'hover:bg-accent-50 hover:text-accent-700 dark:hover:bg-accent-900/30'

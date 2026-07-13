@@ -5,7 +5,15 @@ import { useAttachments } from '@/hooks/use-contests';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { getSignedFileUrl } from '@/lib/supabase';
 import { formatFileSize } from '@/lib/utils';
-import { FileText, File as FileIcon, Trash2, Download, Eye, Image as ImageIcon } from 'lucide-react';
+import {
+  FileText,
+  File as FileIcon,
+  Presentation,
+  Trash2,
+  Download,
+  Eye,
+  Image as ImageIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
@@ -16,6 +24,12 @@ interface FileListProps {
   contestId: string;
   onPreviewClick?: (attachment: Attachment) => void;
 }
+
+const POWERPOINT_MIME = new Set([
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-powerpoint',
+  'application/mspowerpoint',
+]);
 
 function isImageAttachment(attachment: Attachment): boolean {
   return (
@@ -28,6 +42,13 @@ function isPdfAttachment(attachment: Attachment): boolean {
   return (
     attachment.file_type === 'application/pdf' ||
     attachment.file_name.toLowerCase().endsWith('.pdf')
+  );
+}
+
+function isPowerPointAttachment(attachment: Attachment): boolean {
+  return (
+    POWERPOINT_MIME.has(attachment.file_type) ||
+    /\.pptx?$/i.test(attachment.file_name)
   );
 }
 
@@ -144,6 +165,7 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
       {attachments.map((attachment) => {
         const isPdf = isPdfAttachment(attachment);
         const isImage = isImageAttachment(attachment);
+        const isPpt = isPowerPointAttachment(attachment);
         const canPreview = isPdf || isImage;
 
         return (
@@ -165,11 +187,15 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
                 className={`p-2 rounded-lg shrink-0 ${
                   isPdf
                     ? 'bg-red-50 text-red-500 dark:bg-red-900/30'
-                    : 'bg-blue-50 text-blue-500 dark:bg-blue-900/30'
+                    : isPpt
+                      ? 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+                      : 'bg-blue-50 text-blue-500 dark:bg-blue-900/30'
                 }`}
               >
                 {isPdf ? (
                   <FileText className="h-5 w-5" />
+                ) : isPpt ? (
+                  <Presentation className="h-5 w-5" />
                 ) : (
                   <FileIcon className="h-5 w-5" />
                 )}

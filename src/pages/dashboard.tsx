@@ -3,14 +3,19 @@
  * Канбан и календарь — отдельные экраны (/kanban, /calendar)
  */
 import { useState } from 'react';
-import { useContests, useDashboardStats } from '@/hooks/use-contests';
+import {
+  useContests,
+  useDashboardStats,
+  exportContestsCsv,
+} from '@/hooks/use-contests';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { DeadlineList } from '@/components/dashboard/deadline-list';
+import { ActivityHeatmap } from '@/components/dashboard/activity-heatmap';
 import { ContestFilters } from '@/components/dashboard/contest-filters';
 import { ContestCard } from '@/components/contest/contest-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ListTodo, Plus, FileDown } from 'lucide-react';
+import { ListTodo, Plus, FileDown, Table } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadTasksPdfReport } from '@/lib/pdf-report';
@@ -42,6 +47,15 @@ export function Dashboard() {
     }
   };
 
+  const handleCsv = () => {
+    if (!contests?.length) {
+      toast({ title: 'Нет задач для экспорта', variant: 'error' });
+      return;
+    }
+    exportContestsCsv(contests);
+    toast({ title: 'CSV сохранён', variant: 'success' });
+  };
+
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
       <div className="md:hidden pt-2 pb-2">
@@ -62,7 +76,10 @@ export function Dashboard() {
           <h2 className="text-sm font-medium text-[rgb(var(--fg-secondary))] mb-3 uppercase tracking-wider hidden md:block">
             Внимание
           </h2>
-          <DeadlineList />
+          <div className="space-y-4">
+            <DeadlineList />
+            <ActivityHeatmap />
+          </div>
         </div>
       </div>
 
@@ -74,6 +91,15 @@ export function Dashboard() {
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0 min-h-[40px]"
+              onClick={handleCsv}
+            >
+              <Table className="h-4 w-4" />
+              CSV
+            </Button>
             <Button
               variant="outline"
               size="sm"

@@ -23,6 +23,22 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+/** In-memory rate limit (per edge isolate) */
+const rateBuckets = new Map<string, number[]>();
+
+function allowRequest(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  const prev = rateBuckets.get(key) ?? [];
+  const recent = prev.filter((t) => now - t < windowMs);
+  if (recent.length >= max) {
+    rateBuckets.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  rateBuckets.set(key, recent);
+  return true;
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -385,6 +401,18 @@ serve(async (req) => {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
   }
 
+  // Rate limit: 30 запросов / мин с одного IP (in-memory, per isolate)
+  const clientIp =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('cf-connecting-ip') ||
+    'unknown';
+  if (!allowRequest(clientIp, 30, 60_000)) {
+    return jsonResponse(
+      { success: false, error: 'Слишком много попыток. Подождите минуту.' },
+      429
+    );
+  }
+
   const botTokenRaw = Deno.env.get('TELEGRAM_BOT_TOKEN');
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -410,6 +438,23 @@ serve(async (req) => {
     body = (await req.json()) as TelegramAuthRequest;
   } catch {
     return jsonResponse({ success: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  // Валидация входных полей
+  if (body == null || typeof body !== 'object') {
+    return jsonResponse({ success: false, error: 'Invalid body' }, 400);
+  }
+  if (body.bindToUserId != null && typeof body.bindToUserId !== 'string') {
+    return jsonResponse({ success: false, error: 'Invalid bindToUserId' }, 400);
+  }
+  if (body.linkToken != null && typeof body.linkToken !== 'string') {
+    return jsonResponse({ success: false, error: 'Invalid linkToken' }, 400);
+  }
+  if (
+    typeof body.initData === 'string' &&
+    body.initData.length > 16_384
+  ) {
+    return jsonResponse({ success: false, error: 'initData too large' }, 400);
   }
 
   const initData = body?.initData?.trim();

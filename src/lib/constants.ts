@@ -142,14 +142,34 @@ export const ACCEPTED_FILE_TYPES = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
   'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
+  'application/vnd.ms-powerpoint': ['.ppt'],
   'image/jpeg': ['.jpg', '.jpeg'],
   'image/png': ['.png'],
   'image/webp': ['.webp'],
   'image/gif': ['.gif'],
+} as const;
+
+/** Человекочитаемый список поддерживаемых форматов */
+export const ACCEPTED_FILE_LABELS = 'PDF, DOC, DOCX, PPT, PPTX, JPG, PNG';
+
+/** MIME по расширению (на случай пустого file.type в браузере) */
+export const MIME_BY_EXTENSION: Record<string, string> = {
+  '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.doc': 'application/msword',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
 };
 
 /** Максимальный размер файла (15 МБ) */
 export const MAX_FILE_SIZE = 15 * 1024 * 1024;
+export const MAX_FILE_SIZE_MB = 15;
 
 export const DASHBOARD_DEADLINE_COUNT = 5;
 

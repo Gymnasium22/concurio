@@ -24,7 +24,14 @@ import {
   PRIORITY_ORDER,
 } from '@/lib/constants';
 import { cn, isValidTelegramLink } from '@/lib/utils';
-import type { Contest, ContestInsert, ContestUpdate, TaskPriority, TaskType } from '@/types';
+import type {
+  Contest,
+  ContestInsert,
+  ContestUpdate,
+  RecurrenceRule,
+  TaskPriority,
+  TaskType,
+} from '@/types';
 
 interface ContestFormProps {
   initialData?: Contest;
@@ -47,6 +54,9 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
   const [priority, setPriority] = useState<TaskPriority>(initialData?.priority || 'medium');
   const [links, setLinks] = useState<string[]>(initialData?.telegram_message_links || []);
   const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(', '));
+  const [recurrence, setRecurrence] = useState<RecurrenceRule>(
+    initialData?.recurrence || 'none'
+  );
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
   const isFormValid = title.trim().length > 0;
@@ -94,6 +104,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
           priority,
           tags,
           telegram_message_links: validLinks,
+          recurrence,
         };
         await updateMutation.mutateAsync(updateData);
         toast({ title: 'Изменения сохранены', variant: 'success' });
@@ -109,6 +120,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
           tags,
           telegram_message_links: validLinks,
           progress: 0,
+          recurrence,
         };
         const created = await createMutation.mutateAsync(insertData);
         toast({
@@ -117,8 +129,12 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
         });
         navigate(`/contest/${created.id}`, { replace: true });
       }
-    } catch {
-      toast({ title: 'Ошибка сохранения', variant: 'error' });
+    } catch (err) {
+      toast({
+        title: 'Ошибка сохранения',
+        description: err instanceof Error ? err.message : undefined,
+        variant: 'error',
+      });
     }
   };
 
@@ -181,6 +197,28 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           className="min-h-[120px]"
         />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Повтор</label>
+        <Select
+          value={recurrence}
+          onValueChange={(v) => setRecurrence(v as RecurrenceRule)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Без повтора</SelectItem>
+            <SelectItem value="daily">Ежедневно</SelectItem>
+            <SelectItem value="weekly">Еженедельно</SelectItem>
+            <SelectItem value="monthly">Ежемесячно</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-[rgb(var(--fg-muted))]">
+          Повторяющиеся задачи помечаются правилом; автосоздание копий — в следующих
+          версиях.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

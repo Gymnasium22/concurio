@@ -1,5 +1,6 @@
 /**
- * FileUpload — компонент для Drag & Drop загрузки файлов (PDF, DOCX)
+ * FileUpload — компонент для Drag & Drop загрузки файлов
+ * (PDF, Word, PowerPoint, изображения)
  */
 import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -7,7 +8,11 @@ import { UploadCloud } from 'lucide-react';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { useToast } from '@/components/ui/use-toast';
 import { Progress } from '@/components/ui/progress';
-import { ACCEPTED_FILE_TYPES } from '@/lib/constants';
+import {
+  ACCEPTED_FILE_TYPES,
+  ACCEPTED_FILE_LABELS,
+  MAX_FILE_SIZE_MB,
+} from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 
@@ -83,7 +88,7 @@ export function FileUpload({ contestId, onUploadSuccess }: FileUploadProps) {
           {isDragActive ? 'Отпустите файлы здесь...' : 'Нажмите или перетащите файлы'}
         </p>
         <p className="text-xs text-[rgb(var(--fg-muted))] text-center mt-1">
-          Поддерживаются PDF, DOC, DOCX, JPG, PNG (до 10 МБ)
+          {ACCEPTED_FILE_LABELS} (до {MAX_FILE_SIZE_MB} МБ)
         </p>
       </div>
 

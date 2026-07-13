@@ -96,10 +96,16 @@ export function formatFileSize(bytes: number | null): string {
 }
 
 /** Определить тип файла по расширению */
-export function getFileIcon(fileName: string): 'pdf' | 'word' | 'unknown' {
+export function getFileIcon(
+  fileName: string
+): 'pdf' | 'word' | 'powerpoint' | 'image' | 'unknown' {
   const ext = fileName.split('.').pop()?.toLowerCase();
   if (ext === 'pdf') return 'pdf';
   if (ext === 'docx' || ext === 'doc') return 'word';
+  if (ext === 'pptx' || ext === 'ppt') return 'powerpoint';
+  if (ext && ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+    return 'image';
+  }
   return 'unknown';
 }
 

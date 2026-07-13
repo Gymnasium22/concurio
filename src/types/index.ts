@@ -16,7 +16,10 @@ export type TaskType = 'contest' | 'task' | 'personal' | 'reminder';
 /** Приоритет */
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-/** Задача / конкурс — основная сущность */
+/** Повторение задачи */
+export type RecurrenceRule = 'none' | 'daily' | 'weekly' | 'monthly';
+
+/** Задача / конкурс — основная сущность (Entry/Task) */
 export interface Contest {
   id: string;
   user_id: string;
@@ -30,6 +33,10 @@ export interface Contest {
   priority: TaskPriority;
   tags: string[];
   color: string | null;
+  /** null = корневая задача; иначе id родителя (подзадача) */
+  parent_id: string | null;
+  recurrence: RecurrenceRule;
+  recurrence_until: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +56,9 @@ export interface ContestInsert {
   priority?: TaskPriority;
   tags?: string[];
   color?: string | null;
+  parent_id?: string | null;
+  recurrence?: RecurrenceRule;
+  recurrence_until?: string | null;
 }
 
 /** Данные для обновления */
@@ -63,6 +73,9 @@ export interface ContestUpdate {
   priority?: TaskPriority;
   tags?: string[];
   color?: string | null;
+  parent_id?: string | null;
+  recurrence?: RecurrenceRule;
+  recurrence_until?: string | null;
 }
 
 // ========================
@@ -72,8 +85,13 @@ export interface ContestUpdate {
 export type FileType =
   | 'application/pdf'
   | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  | 'application/msword'
+  | 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  | 'application/vnd.ms-powerpoint'
   | 'image/jpeg'
-  | 'image/png';
+  | 'image/png'
+  | 'image/webp'
+  | 'image/gif';
 
 export interface Attachment {
   id: string;

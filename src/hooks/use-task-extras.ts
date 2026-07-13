@@ -186,7 +186,25 @@ export function useChecklistMutations(contestId: string) {
     onSuccess: invalidate,
   });
 
-  return { addItem, toggleItem, removeItem, afterChecklistChange };
+  /** Переупорядочить пункты (по id в новом порядке) */
+  const reorderItems = useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await Promise.all(
+        orderedIds.map((id, position) =>
+          supabase
+            .from('checklist_items')
+            .update({ position, updated_at: new Date().toISOString() })
+            .eq('id', id)
+        )
+      );
+      await logActivity(contestId, 'checklist_reorder', {
+        count: orderedIds.length,
+      });
+    },
+    onSuccess: invalidate,
+  });
+
+  return { addItem, toggleItem, removeItem, reorderItems, afterChecklistChange };
 }
 
 // ---------- Comments ----------

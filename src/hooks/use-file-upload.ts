@@ -1,13 +1,31 @@
 /**
  * useFileUpload — хук для загрузки файлов в Supabase Storage
  *
- * Поддерживает .pdf и .docx, показывает прогресс загрузки.
+ * Поддерживает PDF, DOC/DOCX, PPT/PPTX и изображения.
  */
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, uploadFile, deleteFile } from '@/lib/supabase';
-import { QUERY_KEYS, MAX_FILE_SIZE, ACCEPTED_FILE_TYPES } from '@/lib/constants';
-import type { Attachment, AttachmentInsert } from '@/types';
+import {
+  QUERY_KEYS,
+  MAX_FILE_SIZE,
+  MAX_FILE_SIZE_MB,
+  ACCEPTED_FILE_TYPES,
+  ACCEPTED_FILE_LABELS,
+  MIME_BY_EXTENSION,
+} from '@/lib/constants';
+import {
+  createAttachment,
+  removeAttachment as removeAttachmentService,
+} from '@/services/attachmentService';
+import type { Attachment } from '@/types';
+
+/** Определить MIME-тип файла (браузер иногда отдаёт пустой type) */
+function resolveFileMime(file: File): string {
+  if (file.type) return file.type;
+  const lower = file.name.toLowerCase();
+  const ext = Object.keys(MIME_BY_EXTENSION).find((e) => lower.endsWith(e));
+  return ext ? MIME_BY_EXTENSION[ext]! : 'application/octet-stream';
+}
 
 interface UploadState {
   isUploading: boolean;
@@ -49,11 +67,15 @@ export function useFileUpload(): UseFileUploadReturn {
       const isAllowedFile = hasAllowedExtension || hasAllowedMimeType;
 
       if (!isAllowedFile) {
-        errors.push(`"${file.name}" — неподдерживаемый формат. Допускаются PDF, DOC, DOCX, JPG, PNG.`);
+        errors.push(
+          `"${file.name}" — неподдерживаемый формат. Допускаются ${ACCEPTED_FILE_LABELS}.`
+        );
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
-        errors.push(`"${file.name}" — файл слишком большой (макс. 10 МБ).`);
+        errors.push(
+          `"${file.name}" — файл слишком большой (макс. ${MAX_FILE_SIZE_MB} МБ).`
+        );
         continue;
       }
       valid.push(file);
@@ -78,33 +100,15 @@ export function useFileUpload(): UseFileUploadReturn {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]!;
+        const attachment = await createAttachment(
+          contestId,
+          userId,
+          file,
+          resolveFileMime(file)
+        );
+        uploaded.push(attachment);
 
-        // Загружаем в Storage
-        const filePath = await uploadFile(userId, file);
-        if (!filePath) {
-          throw new Error(`Не удалось загрузить "${file.name}"`);
-        }
-
-        // Создаём запись в БД
-        const insertData: AttachmentInsert = {
-          contest_id: contestId,
-          file_name: file.name,
-          file_path: filePath,
-          file_type: file.type,
-          file_size: file.size,
-        };
-
-        const { data, error } = await supabase
-          .from('attachments')
-          .insert(insertData)
-          .select()
-          .single();
-
-        if (error) throw new Error(error.message);
-        if (data) uploaded.push(data as Attachment);
-
-        // Обновляем прогресс
-        setUploadState(s => ({
+        setUploadState((s) => ({
           ...s,
           progress: Math.round(((i + 1) / total) * 100),
         }));
@@ -130,22 +134,14 @@ export function useFileUpload(): UseFileUploadReturn {
    */
   const deleteMutation = useMutation({
     mutationFn: async (attachment: Attachment) => {
-      // Удаляем файл из Storage
-      await deleteFile(attachment.file_path);
-
-      // Удаляем запись из БД
-      const { error } = await supabase
-        .from('attachments')
-        .delete()
-        .eq('id', attachment.id);
-
-      if (error) throw new Error(error.message);
+      await removeAttachmentService(attachment);
       return attachment;
     },
     onSuccess: (attachment) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.attachments(attachment.contest_id),
       });
+      queryClient.invalidateQueries({ queryKey: ['file-gallery'] });
     },
   });
 

@@ -14,6 +14,7 @@ const navLinks = [
   { path: '/', label: 'Задачи' },
   { path: '/kanban', label: 'Канбан' },
   { path: '/calendar', label: 'Календарь' },
+  { path: '/gallery', label: 'Файлы' },
 ];
 
 export function Header() {

@@ -67,8 +67,7 @@ export function ShareDialog() {
 
   const handleCreate = async () => {
     try {
-      const days =
-        expiresInDays === 'never' ? null : Number(expiresInDays) || 7;
+      const days = Number(expiresInDays) || 7;
       const result = await createShare.mutateAsync({
         contestIds: [...selected],
         title: title.trim() || undefined,
@@ -158,7 +157,7 @@ export function ShareDialog() {
                   <SelectItem value="1">1 день</SelectItem>
                   <SelectItem value="7">7 дней</SelectItem>
                   <SelectItem value="30">30 дней</SelectItem>
-                  <SelectItem value="never">Без срока</SelectItem>
+                  <SelectItem value="90">90 дней</SelectItem>
                 </SelectContent>
               </Select>
             </div>

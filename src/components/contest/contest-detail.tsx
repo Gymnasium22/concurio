@@ -2,6 +2,7 @@
  * ContestDetail — полная информация о конкурсе
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useUpdateContestStatus } from '@/hooks/use-contests';
 import { logActivity } from '@/hooks/use-task-extras';
 import { StatusBadge } from '@/components/contest/status-badge';
@@ -10,6 +11,7 @@ import { FileList } from '@/components/contest/file-list';
 import { FileUpload } from '@/components/contest/file-upload';
 import { FilePreview } from '@/components/contest/pdf-preview';
 import { ChecklistPanel } from '@/components/task/checklist-panel';
+import { SubtasksPanel } from '@/components/task/subtasks-panel';
 import { CommentsTimeline } from '@/components/task/comments-timeline';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -189,6 +191,21 @@ export function ContestDetail({ contest }: ContestDetailProps) {
 
       {/* Чек-лист */}
       <ChecklistPanel contestId={contest.id} />
+
+      {/* Подзадачи (только у корневых) */}
+      {!contest.parent_id && <SubtasksPanel parentId={contest.id} />}
+
+      {contest.parent_id && (
+        <div className="text-sm text-[rgb(var(--fg-muted))]">
+          Это подзадача.{' '}
+          <Link
+            to={`/contest/${contest.parent_id}`}
+            className="text-accent-500 font-medium hover:underline"
+          >
+            К родительской задаче
+          </Link>
+        </div>
+      )}
 
       {/* Ссылки */}
       {contest.telegram_message_links && contest.telegram_message_links.length > 0 && (
