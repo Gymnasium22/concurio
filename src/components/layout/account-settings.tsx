@@ -95,11 +95,11 @@ export function AccountSettings() {
         <Button
           variant="outline"
           size="sm"
-          className="h-9 w-9 sm:w-auto sm:px-3 p-0 sm:gap-2 shrink-0"
+          className="h-9 w-9 xl:w-auto xl:px-3 p-0 xl:gap-2 shrink-0"
           aria-label="Настройки"
         >
           <Settings className="h-4 w-4" />
-          <span className="hidden sm:inline">Настройки</span>
+          <span className="hidden xl:inline">Настройки</span>
         </Button>
       </DialogTrigger>
 
@@ -114,8 +114,7 @@ export function AccountSettings() {
         <DialogHeader className="shrink-0 px-5 pt-5 pb-3 sm:px-6 sm:pt-6 pr-12">
           <DialogTitle className="text-xl">Настройки аккаунта</DialogTitle>
           <DialogDescription className="text-sm">
-            Привязка Telegram не создаёт второй профиль — добавляет вход к
-            текущему email.
+            Привязка Telegram не создаёт второй профиль — добавляет вход к текущему email.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,18 +122,14 @@ export function AccountSettings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-2xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]/70 p-4 space-y-2">
               <p className="text-sm font-medium">Способ входа</p>
-              <p className="text-sm text-[rgb(var(--fg-secondary))]">
-                {authMethodLabel}
-              </p>
+              <p className="text-sm text-[rgb(var(--fg-secondary))]">{authMethodLabel}</p>
               <p className="text-xs text-[rgb(var(--fg-muted))] truncate">
                 {user.email ?? user.display_name ?? 'Аккаунт'}
               </p>
             </div>
             <div className="rounded-2xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]/70 p-4 flex flex-col justify-center gap-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-[rgb(var(--fg-secondary))]">
-                  Telegram
-                </span>
+                <span className="text-sm text-[rgb(var(--fg-secondary))]">Telegram</span>
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     isTelegramLinked

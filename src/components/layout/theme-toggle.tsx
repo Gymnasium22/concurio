@@ -1,51 +1,41 @@
 /**
- * ThemeToggle — компактный переключатель (иконки, подписи в title)
+ * ThemeToggle — одна кнопка-цикл (light → dark → system), без трёх иконок в шапке
  */
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { cn } from '@/lib/utils';
 import type { ThemeMode } from '@/types';
 import { haptic } from '@/lib/telegram';
+import { Button } from '@/components/ui/button';
 
-const themes: { value: ThemeMode; icon: typeof Sun; label: string }[] = [
-  { value: 'light', icon: Sun, label: 'Светлая' },
-  { value: 'dark', icon: Moon, label: 'Тёмная' },
-  { value: 'system', icon: Monitor, label: 'Системная' },
-];
+const ORDER: ThemeMode[] = ['light', 'dark', 'system'];
+
+const META: Record<ThemeMode, { icon: typeof Sun; label: string; nextHint: string }> = {
+  light: { icon: Sun, label: 'Светлая', nextHint: 'Тёмная' },
+  dark: { icon: Moon, label: 'Тёмная', nextHint: 'Системная' },
+  system: { icon: Monitor, label: 'Системная', nextHint: 'Светлая' },
+};
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useAppStore();
+  const current = META[theme] ?? META.system;
+  const Icon = current.icon;
 
   return (
-    <div
-      className={cn(
-        'inline-flex items-center gap-0.5 rounded-xl bg-[rgb(var(--bg-secondary))] p-0.5',
-        className
-      )}
-      role="group"
-      aria-label="Тема оформления"
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={cn('h-9 w-9 p-0 shrink-0', className)}
+      onClick={() => {
+        const i = ORDER.indexOf(theme);
+        setTheme(ORDER[(i + 1) % ORDER.length]);
+        haptic.selection();
+      }}
+      title={`Тема: ${current.label} → ${current.nextHint}`}
+      aria-label={`Тема: ${current.label}. Нажмите для «${current.nextHint}»`}
     >
-      {themes.map(({ value, icon: Icon, label }) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => {
-            setTheme(value);
-            haptic.selection();
-          }}
-          className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-200',
-            theme === value
-              ? 'bg-[rgb(var(--bg-card))] text-[rgb(var(--fg-primary))] shadow-sm'
-              : 'text-[rgb(var(--fg-muted))] hover:text-[rgb(var(--fg-secondary))]'
-          )}
-          title={label}
-          aria-label={label}
-          aria-pressed={theme === value}
-        >
-          <Icon className="h-3.5 w-3.5" />
-        </button>
-      ))}
-    </div>
+      <Icon className="h-4 w-4" />
+    </Button>
   );
 }

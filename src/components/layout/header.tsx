@@ -77,9 +77,9 @@ export function Header() {
       >
         <div
           className={cn(
-            'max-w-5xl mx-auto flex items-center justify-between gap-2',
+            'max-w-6xl mx-auto flex items-center justify-between gap-2',
             'h-12 sm:h-14',
-            'px-3 sm:px-4',
+            'px-3 sm:px-5 lg:px-6',
             isTg &&
               'px-[max(0.75rem,var(--tg-safe-left,0px))] pr-[max(0.75rem,var(--tg-safe-right,0px))]'
           )}

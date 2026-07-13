@@ -37,7 +37,7 @@ export function DeadlineStrip() {
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <p className="text-[11px] font-medium uppercase tracking-wider text-[rgb(var(--fg-muted))]">
         Скоро сдача
       </p>
@@ -52,9 +52,8 @@ export function DeadlineStrip() {
               key={contest.id}
               to={`/contest/${contest.id}`}
               className={cn(
-                'shrink-0 w-[min(11.5rem,70vw)] rounded-xl border px-2.5 py-2 transition-colors',
-                'hover:border-accent-400/50 bg-[rgb(var(--bg-card))]',
-                bgClass.includes('bg-') ? '' : '',
+                'shrink-0 w-[min(12rem,72vw)] sm:w-[13rem] rounded-xl border px-2.5 py-2 transition-all',
+                'hover:border-accent-400/50 hover:shadow-sm bg-[rgb(var(--bg-card))]',
                 'border-[rgb(var(--border-default))]'
               )}
             >

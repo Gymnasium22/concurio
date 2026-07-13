@@ -42,6 +42,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 20;
 
@@ -223,6 +224,34 @@ export function Dashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 min-h-[40px]">
+                Виджеты
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(
+                [
+                  ['stats', 'Статистика'],
+                  ['deadlines', 'Дедлайны'],
+                  ['list', 'Список'],
+                  ['heatmap', 'Активность'],
+                  ['analytics', 'Ссылка на аналитику'],
+                ] as const
+              ).map(([id, label]) => (
+                <DropdownMenuCheckboxItem
+                  key={id}
+                  checked={widgets.includes(id)}
+                  onCheckedChange={() => toggleWidget(id)}
+                >
+                  {label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Link to="/create" className="sm:hidden">
             <Button size="sm" className="gap-2 min-h-[40px]">
               <Plus className="h-4 w-4" />
@@ -246,43 +275,14 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Фильтры + список сразу */}
+      {/* Фильтры + список */}
       <div className="space-y-3 pt-1">
-        <div className="flex justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-xs h-8">
-                Виджеты
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(
-                [
-                  ['stats', 'Статистика'],
-                  ['deadlines', 'Дедлайны'],
-                  ['list', 'Список'],
-                  ['heatmap', 'Активность'],
-                  ['analytics', 'Ссылка на аналитику'],
-                ] as const
-              ).map(([id, label]) => (
-                <DropdownMenuCheckboxItem
-                  key={id}
-                  checked={widgets.includes(id)}
-                  onCheckedChange={() => toggleWidget(id)}
-                >
-                  {label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
         <ContestFilters compact />
 
         {widgets.includes('list') &&
           (isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[1, 2, 3, 4].map((i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Skeleton key={i} className="min-h-[132px] rounded-2xl" />
               ))}
             </div>
@@ -309,7 +309,7 @@ export function Dashboard() {
           ) : (
             <div className="space-y-3">
               <motion.div
-                className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch auto-rows-fr"
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-stretch auto-rows-fr"
                 layout
               >
                 <AnimatePresence mode="popLayout">
@@ -334,25 +334,31 @@ export function Dashboard() {
       </div>
 
       {widgets.includes('heatmap') && (
-        <div className="pt-2 border-t border-[rgb(var(--border-default))]">
+        <div className="pt-3 border-t border-[rgb(var(--border-default))]">
           <button
             type="button"
             onClick={() => setShowMoreStats((v) => !v)}
-            className="flex w-full items-center justify-between py-2 text-sm font-medium text-[rgb(var(--fg-secondary))] hover:text-[rgb(var(--fg-primary))]"
-            aria-expanded={showMoreStats}
+            className="flex w-full items-center justify-between py-2 text-sm font-medium text-[rgb(var(--fg-secondary))] hover:text-[rgb(var(--fg-primary))] lg:pointer-events-none"
+            aria-expanded={showMoreStats || undefined}
           >
             <span>Активность</span>
-            {showMoreStats ? (
-              <ChevronUp className="h-4 w-4" aria-hidden />
-            ) : (
-              <ChevronDown className="h-4 w-4" aria-hidden />
-            )}
+            <span className="lg:hidden">
+              {showMoreStats ? (
+                <ChevronUp className="h-4 w-4" aria-hidden />
+              ) : (
+                <ChevronDown className="h-4 w-4" aria-hidden />
+              )}
+            </span>
           </button>
-          {showMoreStats && (
-            <div className="pb-2 animate-in fade-in slide-in-from-top-1">
-              <ActivityHeatmap />
-            </div>
-          )}
+          {/* На desktop heatmap всегда виден — меньше кликов */}
+          <div
+            className={cn(
+              'pb-1 animate-in fade-in',
+              showMoreStats ? 'block' : 'hidden lg:block'
+            )}
+          >
+            <ActivityHeatmap />
+          </div>
         </div>
       )}
     </div>

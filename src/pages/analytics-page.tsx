@@ -100,7 +100,7 @@ export function AnalyticsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Аналитика</h1>
           <p className="text-sm text-[rgb(var(--fg-muted))] mt-0.5">
-            Velocity, burndown, lead time и нагрузка
+            Скорость, сгорание, срок выполнения и нагрузка
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -130,7 +130,10 @@ export function AnalyticsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         {[
           { label: '% в срок', value: `${analytics.onTimeRate}%` },
-          { label: 'Lead time', value: `${analytics.leadTimeDaysAvg} д` },
+          {
+            label: 'Ср. срок',
+            value: `${analytics.leadTimeDaysAvg} д`,
+          },
           { label: 'Готово', value: analytics.completed },
           { label: 'Просрочено', value: analytics.overdue },
         ].map((k) => (
@@ -148,13 +151,16 @@ export function AnalyticsPage() {
 
       {emptyCharts && (
         <p className="text-sm text-[rgb(var(--fg-muted))] rounded-xl border border-dashed p-4 text-center">
-          Мало данных для графиков — отметьте задачи «Готово», чтобы увидеть velocity
+          Мало данных для графиков — отметьте задачи «Готово», чтобы увидеть скорость
         </p>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="glass rounded-2xl p-4 border border-[rgb(var(--border-default))]">
-          <h3 className="text-sm font-semibold mb-3">Velocity (недели)</h3>
+        <div className="glass rounded-2xl p-4 sm:p-5 border border-[rgb(var(--border-default))]">
+          <h3 className="text-sm font-semibold mb-1">Скорость по неделям</h3>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-3">
+            Сколько задач закрыто за неделю
+          </p>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics.velocity}>
@@ -168,8 +174,11 @@ export function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="glass rounded-2xl p-4 border border-[rgb(var(--border-default))]">
-          <h3 className="text-sm font-semibold mb-3">Burndown</h3>
+        <div className="glass rounded-2xl p-4 sm:p-5 border border-[rgb(var(--border-default))]">
+          <h3 className="text-sm font-semibold mb-1">Сгорание бэклога</h3>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-3">
+            Остаток задач vs идеальная линия
+          </p>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={analytics.burndown}>
@@ -197,13 +206,24 @@ export function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="glass rounded-2xl p-4 border border-[rgb(var(--border-default))] lg:col-span-2">
-          <h3 className="text-sm font-semibold mb-3">Нагрузка по типам</h3>
+        <div className="glass rounded-2xl p-4 sm:p-5 border border-[rgb(var(--border-default))] lg:col-span-2">
+          <h3 className="text-sm font-semibold mb-1">Нагрузка по типам</h3>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] mb-3">
+            Распределение конкурсов, задач и напоминаний
+          </p>
           <div className="h-56 flex flex-col sm:flex-row gap-4">
             <div className="flex-1 min-h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={pie} dataKey="value" nameKey="name" outerRadius={80} label>
+                  <Pie
+                    data={pie}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={80}
+                    innerRadius={36}
+                    paddingAngle={pie.length > 1 ? 2 : 0}
+                    label={pie.length > 1}
+                  >
                     {pie.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
@@ -212,14 +232,15 @@ export function AnalyticsPage() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <ul className="sm:w-48 space-y-1 text-sm self-center">
+            <ul className="sm:w-52 space-y-2 text-sm self-center">
               {pie.map((p, i) => (
                 <li key={p.name} className="flex items-center gap-2">
                   <span
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
                     style={{ background: COLORS[i % COLORS.length] }}
                   />
-                  {p.name}: <strong>{p.value}</strong>
+                  <span className="text-[rgb(var(--fg-secondary))]">{p.name}</span>
+                  <strong className="ml-auto tabular-nums">{p.value}</strong>
                 </li>
               ))}
             </ul>

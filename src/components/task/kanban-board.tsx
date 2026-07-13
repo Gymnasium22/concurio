@@ -1,9 +1,9 @@
 /**
- * Канбан: DnD, горизонтальный скролл с запасом справа (колонка «Готово» видна)
+ * Канбан: DnD, на desktop колонки заполняют ширину и высоту рабочей области
  */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useContests, useUpdateContestStatus } from '@/hooks/use-contests';
+import { useContestsBoard, useUpdateContestStatus } from '@/hooks/use-contests';
 import { STATUS_LABELS, STATUS_ORDER, STATUS_DEFAULT_PROGRESS } from '@/lib/constants';
 import type { Contest, ContestStatus } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,21 +17,31 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-/** Основные колонки; «Отменён» — отдельно в конце, уже уже */
 const MAIN_COLUMNS: ContestStatus[] = [...STATUS_ORDER];
 const ALL_COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
 
+const COLUMN_ACCENT: Record<ContestStatus, string> = {
+  todo: 'border-t-slate-400',
+  in_progress: 'border-t-blue-500',
+  review: 'border-t-violet-500',
+  done: 'border-t-emerald-500',
+  cancelled: 'border-t-red-400',
+};
+
 export function KanbanBoard() {
-  const { data: contests, isLoading } = useContests();
+  const { data: contests, isLoading } = useContestsBoard();
   const updateStatus = useUpdateContestStatus();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropStatus, setDropStatus] = useState<ContestStatus | null>(null);
 
   if (isLoading) {
     return (
-      <div className="flex gap-2.5 overflow-x-auto pb-3 -mx-3 px-3 sm:-mx-4 sm:px-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-56 w-[220px] shrink-0 rounded-2xl" />
+      <div className="flex gap-3 overflow-x-auto pb-3 -mx-3 px-3 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton
+            key={i}
+            className="h-72 w-[220px] shrink-0 rounded-2xl lg:flex-1 lg:w-auto"
+          />
         ))}
       </div>
     );
@@ -72,21 +82,19 @@ export function KanbanBoard() {
     await moveTo(contest, status);
   };
 
-  const columns = ALL_COLUMNS;
-
   return (
     <div
       className={cn(
-        'flex gap-2.5 overflow-x-auto overscroll-x-contain touch-pan-x',
-        'pb-3 pt-0.5',
-        '-mx-3 px-3 sm:-mx-4 sm:px-4 lg:mx-0 lg:px-0',
-        'scroll-smooth snap-x snap-mandatory',
-        /* на широком экране 4 колонки + «Отменён» влезают целиком */
-        'lg:snap-none'
+        'flex gap-2.5 sm:gap-3 overflow-x-auto overscroll-x-contain touch-pan-x',
+        'pb-2 pt-0.5',
+        '-mx-3 px-3 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0',
+        'scroll-smooth snap-x snap-mandatory lg:snap-none',
+        /* desktop: колонки тянутся на высоту экрана */
+        'lg:min-h-[min(72vh,calc(100dvh-13rem))]'
       )}
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
-      {columns.map((status) => {
+      {ALL_COLUMNS.map((status) => {
         const items = byStatus(status);
         const isDropTarget = dropStatus === status;
         const isNarrow = status === 'cancelled';
@@ -104,30 +112,32 @@ export function KanbanBoard() {
             }}
             onDrop={(e) => void onDropColumn(status, e)}
             className={cn(
-              'snap-start shrink-0 flex flex-col rounded-2xl border transition-colors',
-              'bg-[rgb(var(--bg-secondary))]/80',
+              'snap-start shrink-0 flex flex-col rounded-2xl border border-t-[3px] transition-colors',
+              'bg-[rgb(var(--bg-secondary))]/70',
+              COLUMN_ACCENT[status],
               isNarrow
-                ? 'w-[140px] sm:w-[150px] lg:w-[12%]'
-                : 'w-[min(230px,78vw)] sm:w-[240px] lg:flex-1 lg:min-w-0 lg:w-auto',
-              'max-h-[min(70vh,calc(var(--tg-viewport-stable-height,100dvh)-10.5rem))]',
+                ? 'w-[148px] sm:w-[160px] lg:w-[11%] lg:min-w-[7.5rem]'
+                : 'w-[min(240px,80vw)] sm:w-[250px] lg:flex-1 lg:min-w-0 lg:w-auto',
+              'min-h-[220px] max-h-[min(74vh,calc(var(--tg-viewport-stable-height,100dvh)-10rem))]',
+              'lg:max-h-none lg:min-h-[min(72vh,calc(100dvh-13rem))]',
               isDropTarget
-                ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
+                ? 'border-accent-400 bg-accent-50/50 dark:bg-accent-900/25 ring-2 ring-accent-400/30'
                 : 'border-[rgb(var(--border-default))]'
             )}
           >
-            <div className="px-2.5 py-2.5 border-b border-[rgb(var(--border-default))] flex items-center justify-between shrink-0 gap-1">
+            <div className="px-2.5 py-2.5 border-b border-[rgb(var(--border-default))]/80 flex items-center justify-between shrink-0 gap-1">
               <h3 className="text-xs sm:text-sm font-bold truncate">
                 {STATUS_LABELS[status]}
               </h3>
-              <span className="text-[10px] font-medium text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-1.5 py-0.5 rounded-full shrink-0 tabular-nums">
+              <span className="text-[10px] font-semibold text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-1.5 py-0.5 rounded-full shrink-0 tabular-nums min-w-[1.25rem] text-center">
                 {items.length}
               </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-1.5 min-h-[72px]">
+            <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-1.5 min-h-[80px]">
               {items.length === 0 && (
-                <p className="text-[11px] text-center text-[rgb(var(--fg-muted))] py-5">
-                  {isDropTarget ? 'Сюда' : '—'}
+                <p className="text-[11px] text-center text-[rgb(var(--fg-muted))] py-8 px-1 leading-snug">
+                  {isDropTarget ? 'Отпустите сюда' : 'Пусто'}
                 </p>
               )}
               {items.map((c) => (
@@ -138,8 +148,8 @@ export function KanbanBoard() {
                   onDragEnd={onDragEnd}
                   className={cn(
                     'rounded-xl p-2.5 border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))]',
-                    'hover:border-accent-400/40 transition-colors cursor-grab active:cursor-grabbing',
-                    draggingId === c.id && 'opacity-50'
+                    'hover:border-accent-400/50 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing',
+                    draggingId === c.id && 'opacity-40 scale-[0.98]'
                   )}
                 >
                   <div className="flex items-start gap-1">
@@ -158,7 +168,7 @@ export function KanbanBoard() {
                       )}
                       <div className="mt-1.5 h-1 rounded-full bg-[rgb(var(--bg-secondary))]">
                         <div
-                          className="h-full rounded-full bg-accent-500"
+                          className="h-full rounded-full bg-accent-500 transition-[width]"
                           style={{ width: `${c.progress}%` }}
                         />
                       </div>
@@ -175,7 +185,7 @@ export function KanbanBoard() {
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-44">
                         {MAIN_COLUMNS.filter((s) => s !== c.status).map((s) => (
                           <DropdownMenuItem
                             key={s}

@@ -28,11 +28,11 @@ export function AppLayout({ children }: AppLayoutProps) {
         id="main-content"
         tabIndex={-1}
         className={cn(
-          'flex-1 w-full max-w-5xl mx-auto px-3 sm:px-4',
-          'pt-3 sm:pt-6 outline-none',
+          'flex-1 w-full max-w-6xl mx-auto px-3 sm:px-5 lg:px-6',
+          'pt-3 sm:pt-5 lg:pt-6 outline-none',
           /* место под bottom nav + safe area + MainButton */
           'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px)+var(--tg-main-button-space,0px))]',
-          'md:pb-6',
+          'md:pb-8',
           isTg &&
             'px-[max(0.75rem,var(--tg-safe-left,0px))] pr-[max(0.75rem,var(--tg-safe-right,0px))]'
         )}

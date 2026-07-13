@@ -46,7 +46,7 @@ export function StatsCards() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3"
+      className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3"
     >
       <motion.div variants={itemVariants}>
         <Card className="neu h-full border-none">

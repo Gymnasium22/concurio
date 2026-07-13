@@ -78,6 +78,46 @@ export function useContests() {
   });
 }
 
+/** Канбан: все колонки (готово/отменён), но поиск и фильтры — те же */
+export function useContestsBoard() {
+  const {
+    searchQuery,
+    statusFilter,
+    taskTypeFilter,
+    priorityFilter,
+    sortBy,
+    sortOrder,
+    activeWorkspaceId,
+  } = useAppStore();
+
+  return useQuery({
+    queryKey: [
+      ...QUERY_KEYS.contests,
+      'board',
+      searchQuery,
+      statusFilter,
+      taskTypeFilter,
+      priorityFilter,
+      sortBy,
+      sortOrder,
+      activeWorkspaceId,
+    ],
+    queryFn: (): Promise<Contest[]> =>
+      fetchContests({
+        searchQuery,
+        statusFilter: statusFilter === 'all' ? 'all' : statusFilter,
+        hideCompleted: false,
+        taskTypeFilter,
+        priorityFilter,
+        sortBy,
+        sortOrder,
+        rootOnly: true,
+        workspaceId: activeWorkspaceId,
+      }),
+    staleTime: 30_000,
+  });
+}
+
 export function useContest(id: string | undefined) {
   return useQuery({
     queryKey: QUERY_KEYS.contest(id ?? ''),

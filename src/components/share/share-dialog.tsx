@@ -97,9 +97,7 @@ export function ShareDialog() {
   const activeLinks = useMemo(
     () =>
       (myLinks ?? []).filter(
-        (l) =>
-          !l.revoked_at &&
-          (!l.expires_at || new Date(l.expires_at) > new Date())
+        (l) => !l.revoked_at && (!l.expires_at || new Date(l.expires_at) > new Date())
       ),
     [myLinks]
   );
@@ -110,11 +108,11 @@ export function ShareDialog() {
         <Button
           variant="outline"
           size="sm"
-          className="h-9 w-9 sm:w-auto sm:px-3 p-0 sm:gap-1.5 shrink-0"
+          className="h-9 w-9 xl:w-auto xl:px-3 p-0 xl:gap-1.5 shrink-0"
           aria-label="Поделиться"
         >
           <Share2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Поделиться</span>
+          <span className="hidden xl:inline">Поделиться</span>
         </Button>
       </DialogTrigger>
 
@@ -132,8 +130,8 @@ export function ShareDialog() {
         <DialogHeader className="shrink-0 px-4 pt-5 pb-3 sm:px-6 sm:pt-6 pr-12">
           <DialogTitle className="text-xl">Общий доступ</DialogTitle>
           <DialogDescription className="text-sm">
-            Выберите задачи — получите ссылку. Без регистрации, только
-            просмотр. В мессенджерах будет превью названия.
+            Выберите задачи — получите ссылку. Без регистрации, только просмотр. В
+            мессенджерах будет превью названия.
           </DialogDescription>
         </DialogHeader>
 
@@ -278,8 +276,8 @@ export function ShareDialog() {
                         className="rounded-lg border border-[rgb(var(--border-default))] p-2.5 text-xs space-y-1.5"
                       >
                         <p className="font-medium">
-                          {link.title || 'Без названия'} ·{' '}
-                          {link.contest_ids.length} задач · 👁 {link.view_count}
+                          {link.title || 'Без названия'} · {link.contest_ids.length} задач
+                          · 👁 {link.view_count}
                         </p>
                         <p className="text-[rgb(var(--fg-muted))] truncate">{url}</p>
                         <div className="flex gap-2">

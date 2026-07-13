@@ -64,6 +64,16 @@ export function getUrgencyBgColor(urgency: DeadlineUrgency | 'none'): string {
 export function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Без дедлайна';
   const date = new Date(dateStr);
+  const now = new Date();
+
+  // В ближайшие сутки показываем относительное время — как в «Скоро сдача»
+  if (!isPast(date) || isToday(date)) {
+    const hours = differenceInHours(date, now);
+    if (hours >= 0 && hours < 24) {
+      if (hours < 1) return 'Меньше часа';
+      return `Через ${hours} ч.`;
+    }
+  }
 
   if (isToday(date)) return 'Сегодня';
   if (isTomorrow(date)) return 'Завтра';
