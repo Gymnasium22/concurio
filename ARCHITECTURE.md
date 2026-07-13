@@ -12,12 +12,12 @@ UI (pages / components)
       → Edge Functions (telegram-auth, public-share, share-preview)
 ```
 
-| Слой | Ответственность |
-|------|-----------------|
-| **Zustand** (`app-store`) | Только UI: тема, фильтры, mobile menu, isTelegramApp |
-| **TanStack Query** | Серверные данные: contests, attachments, share, checklist |
-| **Services** | Чистые async-функции к Supabase, без React |
-| **Edge Functions** | Telegram auth (HMAC), публичный share, OG preview |
+| Слой                      | Ответственность                                           |
+| ------------------------- | --------------------------------------------------------- |
+| **Zustand** (`app-store`) | Только UI: тема, фильтры, mobile menu, isTelegramApp      |
+| **TanStack Query**        | Серверные данные: contests, attachments, share, checklist |
+| **Services**              | Чистые async-функции к Supabase, без React                |
+| **Edge Functions**        | Telegram auth (HMAC), публичный share, OG preview         |
 
 ## Данные
 
@@ -31,18 +31,18 @@ UI (pages / components)
 
 ## Auth
 
-1. Email/password через Supabase Auth  
+1. Email/password через Supabase Auth
 2. Telegram Mini App → `telegram-auth` Edge Function (валидация `initData` + rate limit)
 
 ## Публичный share
 
-1. Владелец создаёт `share_links` (срок + revoke в UI)  
-2. Гость открывает `/share/:token` или `share-preview` (OG)  
+1. Владелец создаёт `share_links` (срок + revoke в UI)
+2. Гость открывает `/share/:token` или `share-preview` (OG)
 3. RPC `get_public_share` / Edge `public-share` (SECURITY DEFINER)
 
 ## Deploy
 
-- Frontend: GitHub Pages (`base: /concurio/`)  
+- Frontend: GitHub Pages (`base: /concurio/`)
 - Backend: Supabase project (migrations в `supabase/migrations/`)
 
 ## Именование

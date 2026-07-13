@@ -11,8 +11,27 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "lint": "eslint src",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\" \"e2e/**/*.{ts,js}\" \"*.{ts,js,json,md}\" \".github/**/*.{yml,yaml}\"",
+    "format:check": "prettier --check \"e2e/**/*.{ts,js}\" \"playwright.config.ts\" \"package.json\" \"eslint.config.js\" \"vite.config.ts\" \"vitest.config.ts\" \"CONTRIBUTING.md\" \"ARCHITECTURE.md\"",
+    "prepare": "husky",
     "deploy": "npm run build && npx gh-pages -d dist"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx,js,jsx,css,json,md}": [
+      "prettier --write"
+    ],
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix"
+    ],
+    "e2e/**/*.{ts,js}": [
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml,md,css}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -45,15 +64,20 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^26.1.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "gh-pages": "^6.3.0",
     "globals": "^17.7.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.64.0",

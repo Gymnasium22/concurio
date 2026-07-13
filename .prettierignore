@@ -1,0 +1,10 @@
+dist
+node_modules
+package-lock.json
+mcps
+supabase/.temp
+coverage
+playwright-report
+test-results
+*.min.js
+public/fonts

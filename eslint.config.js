@@ -2,10 +2,21 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
-  { ignores: ['dist/**', 'node_modules/**', 'mcps/**', 'supabase/functions/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'mcps/**',
+      'supabase/functions/**',
+      'playwright-report/**',
+      'test-results/**',
+      'e2e/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -28,4 +39,5 @@ export default [
       'no-console': 'off',
     },
   },
+  eslintConfigPrettier,
 ];
