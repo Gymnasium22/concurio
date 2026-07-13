@@ -223,7 +223,7 @@ export function Dashboard() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Link to="/create" className="hidden md:block">
+          <Link to="/create" className="sm:hidden">
             <Button size="sm" className="gap-2 min-h-[40px]">
               <Plus className="h-4 w-4" />
               Создать
