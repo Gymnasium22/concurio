@@ -167,9 +167,9 @@ export const MIME_BY_EXTENSION: Record<string, string> = {
   '.gif': 'image/gif',
 };
 
-/** Максимальный размер файла (15 МБ) */
-export const MAX_FILE_SIZE = 15 * 1024 * 1024;
-export const MAX_FILE_SIZE_MB = 15;
+/** Максимальный размер файла (50 МБ — презентации с картинками) */
+export const MAX_FILE_SIZE = 50 * 1024 * 1024;
+export const MAX_FILE_SIZE_MB = 50;
 
 export const DASHBOARD_DEADLINE_COUNT = 5;
 
