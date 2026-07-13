@@ -28,8 +28,9 @@ export function ThemeToggle({ className }: { className?: string }) {
       size="sm"
       className={cn('h-9 w-9 p-0 shrink-0', className)}
       onClick={() => {
-        const i = ORDER.indexOf(theme);
-        setTheme(ORDER[(i + 1) % ORDER.length]);
+        const i = Math.max(0, ORDER.indexOf(theme));
+        const next = ORDER[(i + 1) % ORDER.length] ?? 'system';
+        setTheme(next);
         haptic.selection();
       }}
       title={`Тема: ${current.label} → ${current.nextHint}`}
