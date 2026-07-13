@@ -1,5 +1,6 @@
 /* Minimal offline shell for Concurio PWA */
-const CACHE = 'concurio-shell-v1';
+/* Bump CACHE when shell changes so clients drop stale index/html */
+const CACHE = 'concurio-shell-v2';
 const SHELL = ['./', './index.html', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -20,14 +21,23 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // Network-first for API; cache-first for same-origin shell assets
   if (url.origin !== self.location.origin) return;
+
+  // Hashed bundles always network-first, never stick forever offline shell
+  const isHashedAsset = /\/assets\/.+\.[a-f0-9]{6,}\.(js|css)$/i.test(url.pathname);
 
   event.respondWith(
     fetch(req)
       .then((res) => {
-        const copy = res.clone();
-        if (res.ok && (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.html') || url.pathname.endsWith('/'))) {
+        if (
+          res.ok &&
+          !isHashedAsset &&
+          (url.pathname.endsWith('.html') ||
+            url.pathname.endsWith('/') ||
+            url.pathname.endsWith('manifest.webmanifest') ||
+            url.pathname.endsWith('sw.js'))
+        ) {
+          const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
