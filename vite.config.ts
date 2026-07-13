@@ -22,5 +22,18 @@ export default defineConfig({
   build: {
     target: 'es2022',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-pdf': ['jspdf', 'react-pdf', 'pdfjs-dist'],
+          'vendor-motion': ['framer-motion'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 700,
   },
 });
+

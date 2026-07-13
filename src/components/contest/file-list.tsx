@@ -52,6 +52,23 @@ function isPowerPointAttachment(attachment: Attachment): boolean {
   );
 }
 
+function isWordAttachment(attachment: Attachment): boolean {
+  return (
+    attachment.file_type.includes('wordprocessing') ||
+    attachment.file_type === 'application/msword' ||
+    /\.docx?$/i.test(attachment.file_name)
+  );
+}
+
+function canPreviewInApp(attachment: Attachment): boolean {
+  return (
+    isImageAttachment(attachment) ||
+    isPdfAttachment(attachment) ||
+    isPowerPointAttachment(attachment) ||
+    isWordAttachment(attachment)
+  );
+}
+
 function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [thumbnailError, setThumbnailError] = useState(false);
@@ -135,7 +152,7 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
   };
 
   const handleOpen = (attachment: Attachment) => {
-    if (onPreviewClick && (isImageAttachment(attachment) || isPdfAttachment(attachment))) {
+    if (onPreviewClick && canPreviewInApp(attachment)) {
       onPreviewClick(attachment);
       return;
     }
@@ -166,7 +183,7 @@ export function FileList({ contestId, onPreviewClick }: FileListProps) {
         const isPdf = isPdfAttachment(attachment);
         const isImage = isImageAttachment(attachment);
         const isPpt = isPowerPointAttachment(attachment);
-        const canPreview = isPdf || isImage;
+        const canPreview = canPreviewInApp(attachment);
 
         return (
           <div

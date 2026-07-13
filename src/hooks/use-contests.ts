@@ -18,6 +18,8 @@ import {
   fetchActivityHeatmap,
   contestsToCsv,
   downloadCsv,
+  csvToContestInserts,
+  importContests,
 } from '@/services/contestService';
 import { fetchAttachments } from '@/services/attachmentService';
 import { contestsToIcs, downloadIcs } from '@/lib/ics';
@@ -251,4 +253,29 @@ export function exportContestsIcs(contests: Contest[], filename?: string) {
     filename ?? `concurio-calendar-${new Date().toISOString().slice(0, 10)}.ics`,
     ics
   );
+}
+
+export function useImportContestsCsv() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (file: File): Promise<number> => {
+      if (!clientRateLimit('import-csv', 5, 60_000)) {
+        throw new Error('Слишком много импортов. Подождите минуту.');
+      }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('Не авторизован');
+
+      const text = await file.text();
+      const inserts = csvToContestInserts(text);
+      return importContests(inserts, user.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.stats });
+    },
+  });
 }

@@ -325,3 +325,214 @@ export function downloadCsv(filename: string, csv: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/** Разбор CSV (поддерживает кавычки и ; / ,) */
+export function parseCsv(text: string): string[][] {
+  const cleaned = text.replace(/^\uFEFF/, '');
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const ch = cleaned[i]!;
+    const next = cleaned[i + 1];
+
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        cell += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',' || ch === ';') {
+      row.push(cell.trim());
+      cell = '';
+    } else if (ch === '\n') {
+      row.push(cell.trim());
+      cell = '';
+      if (row.some((c) => c.length > 0)) rows.push(row);
+      row = [];
+    } else if (ch === '\r') {
+      /* skip */
+    } else {
+      cell += ch;
+    }
+  }
+  row.push(cell.trim());
+  if (row.some((c) => c.length > 0)) rows.push(row);
+  return rows;
+}
+
+const STATUS_SET = new Set([
+  'todo',
+  'in_progress',
+  'review',
+  'done',
+  'cancelled',
+]);
+const TYPE_SET = new Set(['contest', 'task', 'personal', 'reminder']);
+const PRIORITY_SET = new Set(['low', 'medium', 'high', 'urgent']);
+const RECUR_SET = new Set(['none', 'daily', 'weekly', 'monthly']);
+
+function normalizeHeader(h: string): string {
+  return h
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^\wа-яё]/gi, '');
+}
+
+/** Маппинг русских заголовков */
+const HEADER_ALIASES: Record<string, string> = {
+  title: 'title',
+  название: 'title',
+  name: 'title',
+  description: 'description',
+  описание: 'description',
+  status: 'status',
+  статус: 'status',
+  task_type: 'task_type',
+  type: 'task_type',
+  тип: 'task_type',
+  priority: 'priority',
+  приоритет: 'priority',
+  progress: 'progress',
+  прогресс: 'progress',
+  due_date: 'due_date',
+  deadline: 'due_date',
+  дедлайн: 'due_date',
+  tags: 'tags',
+  теги: 'tags',
+  recurrence: 'recurrence',
+  повтор: 'recurrence',
+};
+
+/**
+ * CSV → ContestInsert[]
+ * Минимум: колонка title / название
+ */
+export function csvToContestInserts(text: string): ContestInsert[] {
+  const table = parseCsv(text);
+  if (table.length < 2) {
+    throw new Error('CSV пуст или нет строк данных');
+  }
+
+  const rawHeaders = table[0]!.map(normalizeHeader);
+  const headers = rawHeaders.map((h) => HEADER_ALIASES[h] ?? h);
+
+  const titleIdx = headers.indexOf('title');
+  if (titleIdx < 0) {
+    // Если нет заголовка title — считаем первую колонку названием
+    // (простой импорт: одна колонка со списком задач)
+  }
+
+  const col = (name: string) => headers.indexOf(name);
+
+  const out: ContestInsert[] = [];
+  for (let r = 1; r < table.length; r++) {
+    const cells = table[r]!;
+    const get = (name: string) => {
+      const i = col(name);
+      if (i < 0) return '';
+      return (cells[i] ?? '').trim();
+    };
+
+    let title =
+      titleIdx >= 0 ? (cells[titleIdx] ?? '').trim() : (cells[0] ?? '').trim();
+    if (!title) continue;
+
+    const statusRaw = get('status') || 'todo';
+    const typeRaw = get('task_type') || 'task';
+    const prioRaw = get('priority') || 'medium';
+    const recurRaw = get('recurrence') || 'none';
+    const progressRaw = get('progress');
+    const dueRaw = get('due_date');
+    const tagsRaw = get('tags');
+
+    const status = STATUS_SET.has(statusRaw)
+      ? (statusRaw as ContestInsert['status'])
+      : 'todo';
+    const task_type = TYPE_SET.has(typeRaw)
+      ? (typeRaw as ContestInsert['task_type'])
+      : 'task';
+    const priority = PRIORITY_SET.has(prioRaw)
+      ? (prioRaw as ContestInsert['priority'])
+      : 'medium';
+    const recurrence = RECUR_SET.has(recurRaw)
+      ? (recurRaw as ContestInsert['recurrence'])
+      : 'none';
+
+    let progress = progressRaw ? Number(progressRaw) : undefined;
+    if (progress != null && (Number.isNaN(progress) || progress < 0)) {
+      progress = undefined;
+    }
+    if (progress != null) progress = Math.min(100, Math.round(progress));
+
+    let due_date: string | null = null;
+    if (dueRaw) {
+      const d = new Date(dueRaw);
+      if (!Number.isNaN(d.getTime())) due_date = d.toISOString();
+    }
+
+    const tags = tagsRaw
+      ? tagsRaw
+          .split(/[|,]/)
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 12)
+      : [];
+
+    out.push({
+      title: title.slice(0, 200),
+      description: get('description') || null,
+      status,
+      task_type,
+      priority,
+      progress: progress ?? 0,
+      due_date,
+      tags,
+      recurrence,
+      telegram_message_links: [],
+    });
+  }
+
+  if (out.length === 0) {
+    throw new Error('Не найдено ни одной строки с названием задачи');
+  }
+  if (out.length > 200) {
+    throw new Error('Слишком много строк (макс. 200 за раз)');
+  }
+  return out;
+}
+
+/** Пакетное создание задач */
+export async function importContests(
+  inserts: ContestInsert[],
+  userId: string
+): Promise<number> {
+  const rows = inserts.map((input) => ({
+    ...input,
+    user_id: userId,
+  }));
+
+  // чанками по 50
+  let created = 0;
+  for (let i = 0; i < rows.length; i += 50) {
+    const chunk = rows.slice(i, i + 50);
+    const { data, error } = await supabase
+      .from('contests')
+      .insert(chunk)
+      .select('id');
+    if (error) throw new Error(error.message);
+    created += data?.length ?? chunk.length;
+  }
+  return created;
+}

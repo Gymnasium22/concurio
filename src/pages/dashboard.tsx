@@ -1,12 +1,13 @@
 /**
  * Dashboard — задачи сверху, компактный обзор, без «пустоты» слева
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useContests,
   useDashboardStats,
   exportContestsCsv,
   exportContestsIcs,
+  useImportContestsCsv,
 } from '@/hooks/use-contests';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { DeadlineStrip } from '@/components/dashboard/deadline-strip';
@@ -22,6 +23,7 @@ import {
   Table,
   CalendarRange,
   Download,
+  Upload,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -54,6 +56,8 @@ export function Dashboard() {
   const [pdfBusy, setPdfBusy] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [showMoreStats, setShowMoreStats] = useState(false);
+  const importCsv = useImportContestsCsv();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
@@ -106,6 +110,26 @@ export function Dashboard() {
     }
   };
 
+  const handleImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const n = await importCsv.mutateAsync(file);
+      toast({
+        title: 'Импорт завершён',
+        description: `Создано задач: ${n}`,
+        variant: 'success',
+      });
+    } catch (e) {
+      toast({
+        title: 'Ошибка импорта',
+        description: e instanceof Error ? e.message : undefined,
+        variant: 'error',
+      });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-500">
       {/* Шапка */}
@@ -126,6 +150,25 @@ export function Dashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => void handleImportFile(e.target.files?.[0])}
+          />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 min-h-[40px]"
+            disabled={importCsv.isPending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-4 w-4" />
+            {importCsv.isPending ? 'Импорт…' : 'Импорт'}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
