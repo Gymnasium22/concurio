@@ -79,10 +79,10 @@ export function KanbanBoard() {
       className={cn(
         'flex gap-2.5 overflow-x-auto overscroll-x-contain touch-pan-x',
         'pb-3 pt-0.5',
-        /* выравниваем с краями экрана и оставляем padding справа, чтобы «Готово» не обрезалось */
-        '-mx-3 px-3 sm:-mx-4 sm:px-4',
-        'scroll-smooth',
-        'snap-x snap-mandatory'
+        '-mx-3 px-3 sm:-mx-4 sm:px-4 lg:mx-0 lg:px-0',
+        'scroll-smooth snap-x snap-mandatory',
+        /* на широком экране 4 колонки + «Отменён» влезают целиком */
+        'lg:snap-none'
       )}
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
@@ -106,8 +106,9 @@ export function KanbanBoard() {
             className={cn(
               'snap-start shrink-0 flex flex-col rounded-2xl border transition-colors',
               'bg-[rgb(var(--bg-secondary))]/80',
-              /* фиксированная ширина: 4–5 колонок скроллятся, последняя с отступом */
-              isNarrow ? 'w-[160px] sm:w-[180px]' : 'w-[min(230px,78vw)] sm:w-[240px]',
+              isNarrow
+                ? 'w-[140px] sm:w-[150px] lg:w-[12%]'
+                : 'w-[min(230px,78vw)] sm:w-[240px] lg:flex-1 lg:min-w-0 lg:w-auto',
               'max-h-[min(70vh,calc(var(--tg-viewport-stable-height,100dvh)-10.5rem))]',
               isDropTarget
                 ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
@@ -202,8 +203,7 @@ export function KanbanBoard() {
           </div>
         );
       })}
-      {/* «хвост» скролла — чтобы последняя колонка не прилипала к краю */}
-      <div className="shrink-0 w-2 sm:w-3" aria-hidden />
+      <div className="shrink-0 w-3 lg:hidden" aria-hidden />
     </div>
   );
 }

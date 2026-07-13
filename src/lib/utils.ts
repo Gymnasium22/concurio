@@ -3,7 +3,14 @@
  */
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { differenceInDays, differenceInHours, format, isPast, isToday, isTomorrow } from 'date-fns';
+import {
+  differenceInDays,
+  differenceInHours,
+  format,
+  isPast,
+  isToday,
+  isTomorrow,
+} from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { DeadlineUrgency } from '@/types';
 
@@ -16,8 +23,8 @@ export function cn(...inputs: ClassValue[]) {
  * Определить срочность дедлайна
  * overdue — просрочен, urgent — ≤3 дня, normal — 3-7 дней, safe — >7 дней
  */
-export function getDeadlineUrgency(dueDate: string | null): DeadlineUrgency {
-  if (!dueDate) return 'safe';
+export function getDeadlineUrgency(dueDate: string | null): DeadlineUrgency | 'none' {
+  if (!dueDate) return 'none';
   const date = new Date(dueDate);
   const now = new Date();
 
@@ -30,19 +37,21 @@ export function getDeadlineUrgency(dueDate: string | null): DeadlineUrgency {
 }
 
 /** Цвет для срочности дедлайна */
-export function getUrgencyColor(urgency: DeadlineUrgency): string {
-  const map: Record<DeadlineUrgency, string> = {
+export function getUrgencyColor(urgency: DeadlineUrgency | 'none'): string {
+  const map: Record<DeadlineUrgency | 'none', string> = {
+    none: 'text-[rgb(var(--fg-muted))]',
     overdue: 'text-red-500',
     urgent: 'text-amber-500',
-    normal: 'text-blue-400',
-    safe: 'text-emerald-500',
+    normal: 'text-blue-500 dark:text-blue-400',
+    safe: 'text-emerald-600 dark:text-emerald-400',
   };
   return map[urgency];
 }
 
 /** Цвет фона для срочности */
-export function getUrgencyBgColor(urgency: DeadlineUrgency): string {
-  const map: Record<DeadlineUrgency, string> = {
+export function getUrgencyBgColor(urgency: DeadlineUrgency | 'none'): string {
+  const map: Record<DeadlineUrgency | 'none', string> = {
+    none: 'bg-[rgb(var(--bg-secondary))] border-[rgb(var(--border-default))]',
     overdue: 'bg-red-500/10 border-red-500/20',
     urgent: 'bg-amber-500/10 border-amber-500/20',
     normal: 'bg-blue-400/10 border-blue-400/20',
@@ -111,5 +120,5 @@ export function getFileIcon(
 
 /** Задержка (для анимаций) */
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -28,22 +28,13 @@ export function DeadlineStrip() {
   }
 
   const upcoming = (contests || [])
-    .filter(
-      (c) => c.status !== 'done' && c.status !== 'cancelled' && c.due_date
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime()
-    )
+    .filter((c) => c.status !== 'done' && c.status !== 'cancelled' && c.due_date)
+    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
     .slice(0, DASHBOARD_DEADLINE_COUNT);
 
+  // На десктопе пустую полосу не показываем — меньше шума
   if (upcoming.length === 0) {
-    return (
-      <div className="flex items-center gap-2 rounded-xl border border-dashed border-[rgb(var(--border-default))] px-3 py-2.5 text-xs text-[rgb(var(--fg-muted))]">
-        <CalendarClock className="h-4 w-4 shrink-0 text-accent-500" />
-        Нет ближайших дедлайнов
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -85,9 +76,7 @@ export function DeadlineStrip() {
                       month: 'short',
                     })}
                   </span>
-                  <span
-                    className={cn('text-sm font-bold leading-none', colorClass)}
-                  >
+                  <span className={cn('text-sm font-bold leading-none', colorClass)}>
                     {new Date(contest.due_date!).getDate()}
                   </span>
                 </div>
