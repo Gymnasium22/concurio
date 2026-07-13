@@ -1,5 +1,5 @@
 /**
- * ContestCard — единый размер карточек + быстрые действия
+ * ContestCard — компактная карточка; быстрые действия в меню «⋯»
  */
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   Play,
   Repeat,
+  MoreHorizontal,
+  Percent,
 } from 'lucide-react';
 import { formatDate, getDeadlineUrgency, getUrgencyColor, cn } from '@/lib/utils';
 import {
@@ -31,14 +33,20 @@ import { useUpdateContest, useUpdateContestStatus } from '@/hooks/use-contests';
 import { logActivity } from '@/hooks/use-task-extras';
 import { haptic } from '@/lib/telegram';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ContestCardProps {
   contest: Contest;
   index: number;
 }
 
-/** Единая компактная высота карточек */
-const CARD_MIN_H = 'min-h-[156px] sm:min-h-[164px] h-full';
+const CARD_MIN_H = 'min-h-[132px] sm:min-h-[140px] h-full';
 
 export function ContestCard({ contest, index }: ContestCardProps) {
   const urgency = getDeadlineUrgency(contest.due_date);
@@ -55,14 +63,9 @@ export function ContestCard({ contest, index }: ContestCardProps) {
 
   const showActions =
     contest.status !== 'done' && contest.status !== 'cancelled';
+  const busy = updateStatus.isPending || updateContest.isPending;
 
-  const stop = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const markDone = async (e: React.MouseEvent) => {
-    stop(e);
+  const markDone = async () => {
     haptic.success();
     await updateStatus.mutateAsync({
       id: contest.id,
@@ -73,8 +76,7 @@ export function ContestCard({ contest, index }: ContestCardProps) {
     toast({ title: 'Отмечено готовым', variant: 'success' });
   };
 
-  const startWork = async (e: React.MouseEvent) => {
-    stop(e);
+  const startWork = async () => {
     haptic.light();
     await updateStatus.mutateAsync({
       id: contest.id,
@@ -85,8 +87,7 @@ export function ContestCard({ contest, index }: ContestCardProps) {
     toast({ title: 'В работе', variant: 'success' });
   };
 
-  const bumpProgress = async (e: React.MouseEvent) => {
-    stop(e);
+  const bumpProgress = async () => {
     haptic.medium();
     const next = Math.min(100, contest.progress + 10);
     const status =
@@ -107,10 +108,10 @@ export function ContestCard({ contest, index }: ContestCardProps) {
   return (
     <motion.div
       className={cn('h-full', CARD_MIN_H)}
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        delay: Math.min(index * 0.04, 0.4),
+        delay: Math.min(index * 0.03, 0.3),
         type: 'spring',
         stiffness: 320,
         damping: 26,
@@ -122,154 +123,152 @@ export function ContestCard({ contest, index }: ContestCardProps) {
           'hover:border-accent-400/50 hover:shadow-lg transition-all duration-300'
         )}
       >
-        {/* Цвет приоритета слева */}
         <div
           className={cn(
             'w-1 shrink-0 self-stretch',
             PRIORITY_BAR[contest.priority] ?? PRIORITY_BAR.medium
           )}
           title={`Приоритет: ${PRIORITY_LABELS[contest.priority] ?? contest.priority}`}
-          aria-label={`Приоритет: ${PRIORITY_LABELS[contest.priority] ?? contest.priority}`}
         />
 
         <CardContent className="p-3 sm:p-3.5 flex flex-col flex-1 min-h-0 gap-0 min-w-0">
-          <Link
-            to={`/contest/${contest.id}`}
-            className="flex flex-col flex-1 min-h-0 outline-none focus-visible:ring-2 focus-visible:ring-accent-400 rounded-lg"
-          >
-            <div className="flex justify-between items-center gap-2 shrink-0">
-              <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold border',
-                    typeStyle.text,
-                    typeStyle.bg,
-                    typeStyle.border
-                  )}
-                >
-                  {TASK_TYPE_LABELS[contest.task_type] ?? 'Задача'}
-                </span>
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
-                    priorityStyle.text,
-                    priorityStyle.bg
-                  )}
-                >
+          <div className="flex items-start gap-1">
+            <Link
+              to={`/contest/${contest.id}`}
+              className="flex flex-col flex-1 min-h-0 min-w-0 outline-none focus-visible:ring-2 focus-visible:ring-accent-400 rounded-lg"
+            >
+              <div className="flex justify-between items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-1 min-w-0 flex-1">
                   <span
-                    className={cn('h-1 w-1 rounded-full', priorityStyle.dot)}
-                  />
-                  {PRIORITY_LABELS[contest.priority] ?? 'Средний'}
-                </span>
-              </div>
-              <StatusBadge status={contest.status} className="shrink-0 scale-90 origin-right" />
-            </div>
-
-            <h3
-              className={cn(
-                'mt-1.5 text-sm sm:text-[0.95rem] font-semibold leading-snug',
-                'text-[rgb(var(--fg-primary))] group-hover:text-accent-500 transition-colors',
-                'line-clamp-1 min-h-[1.35em]'
-              )}
-              title={contest.title}
-            >
-              {contest.title}
-            </h3>
-
-            <p
-              className={cn(
-                'mt-0.5 text-xs leading-snug line-clamp-1 min-h-[1.25em]',
-                contest.description
-                  ? 'text-[rgb(var(--fg-secondary))]'
-                  : 'text-[rgb(var(--fg-muted))]/50'
-              )}
-            >
-              {contest.description?.trim() || 'Без описания'}
-            </p>
-
-            <div className="mt-auto pt-2 space-y-1.5 shrink-0">
-              <div className="flex items-center justify-between gap-2">
-                <div
-                  className={cn(
-                    'flex items-center gap-1 text-xs font-medium truncate',
-                    urgencyColor
-                  )}
-                >
-                  <Calendar className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{formatDate(contest.due_date)}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[rgb(var(--fg-muted))] shrink-0">
-                  {contest.recurrence && contest.recurrence !== 'none' && (
+                    className={cn(
+                      'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold border',
+                      typeStyle.text,
+                      typeStyle.bg,
+                      typeStyle.border
+                    )}
+                  >
+                    {TASK_TYPE_LABELS[contest.task_type] ?? 'Задача'}
+                  </span>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium',
+                      priorityStyle.text,
+                      priorityStyle.bg
+                    )}
+                  >
                     <span
-                      className="flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400"
-                      title={RECURRENCE_LABELS[contest.recurrence]}
-                    >
-                      <Repeat className="h-3 w-3" />
-                    </span>
-                  )}
-                  {hasLinks ? (
-                    <span className="flex items-center gap-0.5 text-[10px]">
-                      <MessageCircle className="h-3 w-3" />
-                      {contest.telegram_message_links.length}
-                    </span>
-                  ) : null}
-                  {contest.priority === 'urgent' && (
-                    <Flag className="h-3 w-3 text-red-500" />
-                  )}
-                  <ChevronRight className="h-3.5 w-3.5 text-[rgb(var(--fg-muted))] group-hover:text-accent-500 hidden sm:block" />
+                      className={cn('h-1 w-1 rounded-full', priorityStyle.dot)}
+                    />
+                    {PRIORITY_LABELS[contest.priority] ?? 'Средний'}
+                  </span>
+                </div>
+                <StatusBadge
+                  status={contest.status}
+                  className="shrink-0 scale-90 origin-right"
+                />
+              </div>
+
+              <h3
+                className={cn(
+                  'mt-1.5 text-sm sm:text-[0.95rem] font-semibold leading-snug',
+                  'text-[rgb(var(--fg-primary))] group-hover:text-accent-500 transition-colors',
+                  'line-clamp-2 min-h-[1.35em]'
+                )}
+                title={contest.title}
+              >
+                {contest.title}
+              </h3>
+
+              <div className="mt-auto pt-2 space-y-1.5 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 text-xs font-medium truncate',
+                      urgencyColor
+                    )}
+                  >
+                    <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{formatDate(contest.due_date)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[rgb(var(--fg-muted))] shrink-0">
+                    {contest.recurrence && contest.recurrence !== 'none' && (
+                      <span
+                        className="flex items-center text-violet-600 dark:text-violet-400"
+                        title={RECURRENCE_LABELS[contest.recurrence]}
+                      >
+                        <Repeat className="h-3 w-3" />
+                      </span>
+                    )}
+                    {hasLinks ? (
+                      <span className="flex items-center gap-0.5 text-[10px]">
+                        <MessageCircle className="h-3 w-3" />
+                        {contest.telegram_message_links.length}
+                      </span>
+                    ) : null}
+                    {contest.priority === 'urgent' && (
+                      <Flag className="h-3 w-3 text-red-500" />
+                    )}
+                    <ChevronRight className="h-3.5 w-3.5 hidden sm:block group-hover:text-accent-500" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Progress value={contest.progress} className="h-1.5 flex-1" />
+                  <span className="text-[10px] font-bold w-8 text-right tabular-nums text-[rgb(var(--fg-secondary))]">
+                    {contest.progress}%
+                  </span>
                 </div>
               </div>
+            </Link>
 
-              <div className="flex items-center gap-2">
-                <Progress value={contest.progress} className="h-1.5 flex-1" />
-                <span className="text-[10px] font-bold w-8 text-right tabular-nums text-[rgb(var(--fg-secondary))]">
-                  {contest.progress}%
-                </span>
-              </div>
-            </div>
-          </Link>
-
-          <div className="mt-2 pt-2 border-t border-[rgb(var(--border-default))] min-h-[1.75rem] flex items-center shrink-0">
             {showActions ? (
-              <div className="flex flex-wrap gap-1 w-full">
-                {contest.status === 'todo' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[11px] gap-0.5 px-2 flex-1 sm:flex-none"
-                    onClick={startWork}
-                    disabled={updateStatus.isPending}
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 -mr-1 text-[rgb(var(--fg-muted))]"
+                    disabled={busy}
+                    aria-label="Действия"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Play className="h-3 w-3" />В работу
+                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[11px] gap-0.5 px-2 flex-1 sm:flex-none"
-                  onClick={bumpProgress}
-                  disabled={updateContest.isPending}
-                >
-                  +10%
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[11px] gap-0.5 px-2 flex-1 sm:flex-none text-emerald-600 border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-900/20"
-                  onClick={markDone}
-                  disabled={updateStatus.isPending}
-                >
-                  <CheckCircle2 className="h-3 w-3" />
-                  Готово
-                </Button>
-              </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  {contest.status === 'todo' && (
+                    <DropdownMenuItem
+                      className="gap-2"
+                      disabled={busy}
+                      onClick={() => void startWork()}
+                    >
+                      <Play className="h-4 w-4" />В работу
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="gap-2"
+                    disabled={busy}
+                    onClick={() => void bumpProgress()}
+                  >
+                    <Percent className="h-4 w-4" />
+                    +10% прогресс
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="gap-2 text-emerald-600 focus:text-emerald-700"
+                    disabled={busy}
+                    onClick={() => void markDone()}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Готово
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <p className="text-[11px] text-[rgb(var(--fg-muted))] w-full text-center sm:text-left">
-                {contest.status === 'done' ? 'Выполнено' : 'Отменено'}
-              </p>
+              <span className="text-[10px] text-[rgb(var(--fg-muted))] shrink-0 pt-1 pr-1">
+                {contest.status === 'done' ? '✓' : '✕'}
+              </span>
             )}
           </div>
         </CardContent>

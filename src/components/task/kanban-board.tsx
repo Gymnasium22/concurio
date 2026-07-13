@@ -1,5 +1,5 @@
 /**
- * Канбан: drag-and-drop между колонками + кнопки быстрого переноса
+ * Канбан: DnD, горизонтальный скролл с запасом справа (колонка «Готово» видна)
  */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -9,8 +9,17 @@ import type { Contest, ContestStatus } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, cn } from '@/lib/utils';
 import { haptic } from '@/lib/telegram';
+import { MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-const COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
+/** Основные колонки; «Отменён» — отдельно в конце, уже уже */
+const MAIN_COLUMNS: ContestStatus[] = [...STATUS_ORDER];
+const ALL_COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
 
 export function KanbanBoard() {
   const { data: contests, isLoading } = useContests();
@@ -20,9 +29,9 @@ export function KanbanBoard() {
 
   if (isLoading) {
     return (
-      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1 touch-pan-x">
+      <div className="flex gap-2.5 overflow-x-auto pb-3 -mx-3 px-3 sm:-mx-4 sm:px-4">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-64 w-[min(260px,80vw)] shrink-0 rounded-2xl" />
+          <Skeleton key={i} className="h-56 w-[220px] shrink-0 rounded-2xl" />
         ))}
       </div>
     );
@@ -63,11 +72,24 @@ export function KanbanBoard() {
     await moveTo(contest, status);
   };
 
+  const columns = ALL_COLUMNS;
+
   return (
-    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1 snap-x snap-mandatory touch-pan-x overscroll-x-contain">
-      {COLUMNS.map((status) => {
+    <div
+      className={cn(
+        'flex gap-2.5 overflow-x-auto overscroll-x-contain touch-pan-x',
+        'pb-3 pt-0.5',
+        /* выравниваем с краями экрана и оставляем padding справа, чтобы «Готово» не обрезалось */
+        '-mx-3 px-3 sm:-mx-4 sm:px-4',
+        'scroll-smooth',
+        'snap-x snap-mandatory'
+      )}
+      style={{ WebkitOverflowScrolling: 'touch' }}
+    >
+      {columns.map((status) => {
         const items = byStatus(status);
         const isDropTarget = dropStatus === status;
+        const isNarrow = status === 'cancelled';
 
         return (
           <div
@@ -82,22 +104,29 @@ export function KanbanBoard() {
             }}
             onDrop={(e) => void onDropColumn(status, e)}
             className={cn(
-              'snap-start shrink-0 w-[min(260px,82vw)] sm:w-[280px] flex flex-col rounded-2xl bg-[rgb(var(--bg-secondary))]/80 border max-h-[min(65vh,calc(var(--tg-viewport-stable-height,100dvh)-12rem))] transition-colors',
+              'snap-start shrink-0 flex flex-col rounded-2xl border transition-colors',
+              'bg-[rgb(var(--bg-secondary))]/80',
+              /* фиксированная ширина: 4–5 колонок скроллятся, последняя с отступом */
+              isNarrow ? 'w-[160px] sm:w-[180px]' : 'w-[min(230px,78vw)] sm:w-[240px]',
+              'max-h-[min(70vh,calc(var(--tg-viewport-stable-height,100dvh)-10.5rem))]',
               isDropTarget
                 ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
                 : 'border-[rgb(var(--border-default))]'
             )}
           >
-            <div className="px-3 py-3 border-b border-[rgb(var(--border-default))] flex items-center justify-between shrink-0 bg-[rgb(var(--bg-secondary))] rounded-t-2xl">
-              <h3 className="text-sm font-bold truncate">{STATUS_LABELS[status]}</h3>
-              <span className="text-xs font-medium text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-2 py-0.5 rounded-full shrink-0">
+            <div className="px-2.5 py-2.5 border-b border-[rgb(var(--border-default))] flex items-center justify-between shrink-0 gap-1">
+              <h3 className="text-xs sm:text-sm font-bold truncate">
+                {STATUS_LABELS[status]}
+              </h3>
+              <span className="text-[10px] font-medium text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-1.5 py-0.5 rounded-full shrink-0 tabular-nums">
                 {items.length}
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-2 min-h-[80px]">
+
+            <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-1.5 min-h-[72px]">
               {items.length === 0 && (
-                <p className="text-xs text-center text-[rgb(var(--fg-muted))] py-6">
-                  {isDropTarget ? 'Отпустите здесь' : 'Пусто'}
+                <p className="text-[11px] text-center text-[rgb(var(--fg-muted))] py-5">
+                  {isDropTarget ? 'Сюда' : '—'}
                 </p>
               )}
               {items.map((c) => (
@@ -107,44 +136,65 @@ export function KanbanBoard() {
                   onDragStart={(e) => onDragStart(e, c)}
                   onDragEnd={onDragEnd}
                   className={cn(
-                    'glass rounded-xl p-3 space-y-2 border border-[rgb(var(--border-default))] hover:border-accent-400/40 transition-colors cursor-grab active:cursor-grabbing',
-                    draggingId === c.id && 'opacity-50 scale-[0.98]'
+                    'rounded-xl p-2.5 border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))]',
+                    'hover:border-accent-400/40 transition-colors cursor-grab active:cursor-grabbing',
+                    draggingId === c.id && 'opacity-50'
                   )}
                 >
-                  <Link to={`/contest/${c.id}`} className="block" draggable={false}>
-                    <p className="text-sm font-semibold line-clamp-2 hover:text-accent-500">
-                      {c.title}
-                    </p>
-                    {c.due_date && (
-                      <p className="text-[11px] text-[rgb(var(--fg-muted))] mt-1">
-                        {formatDate(c.due_date)}
+                  <div className="flex items-start gap-1">
+                    <Link
+                      to={`/contest/${c.id}`}
+                      className="flex-1 min-w-0 block"
+                      draggable={false}
+                    >
+                      <p className="text-sm font-semibold line-clamp-2 hover:text-accent-500">
+                        {c.title}
                       </p>
-                    )}
-                    <div className="mt-2 h-1 rounded-full bg-[rgb(var(--bg-secondary))]">
-                      <div
-                        className="h-full rounded-full bg-accent-500"
-                        style={{ width: `${c.progress}%` }}
-                      />
-                    </div>
-                  </Link>
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {COLUMNS.filter((s) => s !== c.status)
-                      .slice(0, 3)
-                      .map((s) => (
+                      {c.due_date && (
+                        <p className="text-[10px] text-[rgb(var(--fg-muted))] mt-1">
+                          {formatDate(c.due_date)}
+                        </p>
+                      )}
+                      <div className="mt-1.5 h-1 rounded-full bg-[rgb(var(--bg-secondary))]">
+                        <div
+                          className="h-full rounded-full bg-accent-500"
+                          style={{ width: `${c.progress}%` }}
+                        />
+                      </div>
+                    </Link>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <button
-                          key={s}
                           type="button"
-                          disabled={updateStatus.isPending}
-                          onClick={() => void moveTo(c, s)}
-                          className={cn(
-                            'text-[10px] px-1.5 py-0.5 rounded-md border border-[rgb(var(--border-default))]',
-                            'hover:bg-accent-50 hover:text-accent-700 dark:hover:bg-accent-900/30'
-                          )}
-                          title={`Переместить: ${STATUS_LABELS[s]}`}
+                          className="p-1 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-secondary))] shrink-0"
+                          aria-label="Переместить"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          → {STATUS_LABELS[s]}
+                          <MoreHorizontal className="h-4 w-4" />
                         </button>
-                      ))}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        {MAIN_COLUMNS.filter((s) => s !== c.status).map((s) => (
+                          <DropdownMenuItem
+                            key={s}
+                            disabled={updateStatus.isPending}
+                            onClick={() => void moveTo(c, s)}
+                          >
+                            → {STATUS_LABELS[s]}
+                          </DropdownMenuItem>
+                        ))}
+                        {c.status !== 'cancelled' && (
+                          <DropdownMenuItem
+                            disabled={updateStatus.isPending}
+                            onClick={() => void moveTo(c, 'cancelled')}
+                            className="text-red-500"
+                          >
+                            → {STATUS_LABELS.cancelled}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               ))}
@@ -152,6 +202,8 @@ export function KanbanBoard() {
           </div>
         );
       })}
+      {/* «хвост» скролла — чтобы последняя колонка не прилипала к краю */}
+      <div className="shrink-0 w-2 sm:w-3" aria-hidden />
     </div>
   );
 }

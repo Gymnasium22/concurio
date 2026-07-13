@@ -3,14 +3,14 @@ import { ContestFilters } from '@/components/dashboard/contest-filters';
 
 export function KanbanPage() {
   return (
-    <div className="space-y-4 animate-in fade-in duration-500">
+    <div className="space-y-3 animate-in fade-in duration-500">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Канбан</h1>
-        <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
-          Перетащите карточку в другую колонку или нажмите «→ статус»
+        <p className="text-sm text-[rgb(var(--fg-muted))] mt-0.5">
+          Листайте колонки вправо · перетащите карточку или «⋯»
         </p>
       </div>
-      <ContestFilters />
+      <ContestFilters compact />
       <KanbanBoard />
     </div>
   );

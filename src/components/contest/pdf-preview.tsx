@@ -69,23 +69,26 @@ export function FilePreview({ filePath, fileName, fileType }: FilePreviewProps) 
 
   if (isImageFile(fileType, fileName)) {
     return (
-      <div className="flex flex-col h-full bg-black/90">
-        <div className="flex-1 flex items-center justify-center p-3 sm:p-6 overflow-auto">
+      <div className="flex flex-col h-full min-h-0 bg-black">
+        <div className="flex-1 min-h-0 flex items-center justify-center p-2 sm:p-4 overflow-auto">
           <img
             src={url}
             alt={fileName ?? 'Изображение'}
-            className="max-w-full max-h-[calc(85vh-80px)] object-contain rounded-lg shadow-2xl select-none"
+            className="w-auto h-auto max-w-full max-h-full object-contain rounded-md shadow-2xl select-none"
+            style={{
+              maxHeight: 'min(calc(100dvh - 7rem), calc(var(--tg-viewport-stable-height, 100dvh) - 7rem))',
+            }}
             draggable={false}
           />
         </div>
-        <div className="shrink-0 flex justify-center gap-2 p-3 border-t border-white/10">
+        <div className="shrink-0 flex justify-center gap-3 p-2.5 border-t border-white/10 bg-black/80">
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-white/80 hover:text-white underline underline-offset-2"
           >
-            Открыть в новой вкладке
+            Открыть полностью
           </a>
         </div>
       </div>

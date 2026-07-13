@@ -30,9 +30,9 @@ export function StatsCards() {
 
   if (isLoading || !stats) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-24 rounded-2xl" />
+          <Skeleton key={i} className="h-[4.25rem] rounded-2xl" />
         ))}
       </div>
     );
@@ -46,26 +46,25 @@ export function StatsCards() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4"
+      className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3"
     >
-      {/* Карточка 1: Прогресс */}
       <motion.div variants={itemVariants}>
         <Card className="neu h-full border-none">
-          <CardContent className="p-4 flex items-center gap-3 min-h-[5.5rem]">
+          <CardContent className="p-3 flex items-center gap-2.5 min-h-[4.25rem]">
             <ProgressRing
               progress={overallProgress}
-              size={52}
+              size={44}
               strokeWidth={4}
               color="accent"
               className="shrink-0"
             />
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[11px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
-                Всего готово
+              <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
+                Готово
               </span>
-              <span className="text-lg font-bold tabular-nums leading-none">
+              <span className="text-base font-bold tabular-nums leading-none">
                 {stats.completed}
-                <span className="text-[rgb(var(--fg-muted))] font-semibold">
+                <span className="text-[rgb(var(--fg-muted))] font-semibold text-sm">
                   {' '}
                   / {stats.total}
                 </span>
@@ -75,53 +74,50 @@ export function StatsCards() {
         </Card>
       </motion.div>
 
-      {/* Карточка 2: В работе */}
       <motion.div variants={itemVariants}>
         <Card className="glass h-full">
-          <CardContent className="p-4 flex flex-col justify-between h-full gap-2 min-h-[5.5rem]">
-            <div className="flex justify-between items-start gap-2">
-              <span className="text-[11px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
+          <CardContent className="p-3 flex flex-col justify-between h-full gap-1 min-h-[4.25rem]">
+            <div className="flex justify-between items-start gap-1">
+              <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
                 В работе
               </span>
-              <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-500 shrink-0">
-                <Clock className="h-4 w-4" />
+              <div className="p-1 rounded-md bg-blue-50 dark:bg-blue-900/30 text-blue-500 shrink-0">
+                <Clock className="h-3.5 w-3.5" />
               </div>
             </div>
-            <span className="text-2xl font-bold tabular-nums">{stats.inProgress}</span>
+            <span className="text-xl font-bold tabular-nums">{stats.inProgress}</span>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Карточка 3: Просрочено */}
       <motion.div variants={itemVariants}>
         <Card className="glass h-full">
-          <CardContent className="p-4 flex flex-col justify-between h-full gap-2 min-h-[5.5rem]">
-            <div className="flex justify-between items-start gap-2">
-              <span className="text-[11px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
+          <CardContent className="p-3 flex flex-col justify-between h-full gap-1 min-h-[4.25rem]">
+            <div className="flex justify-between items-start gap-1">
+              <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
                 Просрочено
               </span>
-              <div className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-500 shrink-0">
-                <AlertTriangle className="h-4 w-4" />
+              <div className="p-1 rounded-md bg-red-50 dark:bg-red-900/30 text-red-500 shrink-0">
+                <AlertTriangle className="h-3.5 w-3.5" />
               </div>
             </div>
-            <span className="text-2xl font-bold tabular-nums">{stats.overdue}</span>
+            <span className="text-xl font-bold tabular-nums">{stats.overdue}</span>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Карточка 4: Ближайшие (≤7 дней) */}
       <motion.div variants={itemVariants}>
         <Card className="glass h-full">
-          <CardContent className="p-4 flex flex-col justify-between h-full gap-2 min-h-[5.5rem]">
-            <div className="flex justify-between items-start gap-2">
-              <span className="text-[11px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
-                Скоро сдача
+          <CardContent className="p-3 flex flex-col justify-between h-full gap-1 min-h-[4.25rem]">
+            <div className="flex justify-between items-start gap-1">
+              <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
+                ≤7 дней
               </span>
-              <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-500 shrink-0">
-                <Target className="h-4 w-4" />
+              <div className="p-1 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-500 shrink-0">
+                <Target className="h-3.5 w-3.5" />
               </div>
             </div>
-            <span className="text-2xl font-bold tabular-nums">
+            <span className="text-xl font-bold tabular-nums">
               {stats.upcomingDeadlines}
             </span>
           </CardContent>

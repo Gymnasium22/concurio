@@ -232,15 +232,26 @@ export function ContestDetail({ contest }: ContestDetailProps) {
       {/* Комментарии и timeline */}
       <CommentsTimeline contestId={contest.id} />
 
-      {/* Модалка превью PDF / изображений — без скачивания */}
+      {/* Превью: почти на весь экран, фото целиком */}
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
-        <DialogContent className="max-w-5xl w-[96vw] p-0 overflow-hidden bg-[rgb(var(--bg-secondary))] border-none">
-          <DialogHeader className="p-4 bg-[rgb(var(--bg-card))] border-b absolute top-0 left-0 right-0 z-10 m-0">
-            <DialogTitle className="truncate pr-8 text-base">
+        <DialogContent
+          className={cn(
+            'p-0 gap-0 overflow-hidden border-none bg-black',
+            'w-[100vw] max-w-[100vw] sm:max-w-[min(96vw,1100px)]',
+            'h-[min(96dvh,var(--tg-viewport-stable-height,96dvh))] max-h-[min(96dvh,var(--tg-viewport-stable-height,96dvh))]',
+            'sm:h-[min(92vh,900px)] sm:max-h-[92vh]',
+            'left-0 right-0 bottom-0 top-auto sm:top-[50%] sm:bottom-auto sm:left-[50%] sm:right-auto',
+            'translate-x-0 translate-y-0 sm:-translate-x-1/2 sm:-translate-y-1/2',
+            'rounded-none sm:rounded-2xl',
+            'flex flex-col'
+          )}
+        >
+          <DialogHeader className="shrink-0 px-4 py-3 pr-12 bg-black/90 border-b border-white/10 m-0">
+            <DialogTitle className="truncate text-sm text-white font-medium">
               {previewFile?.file_name}
             </DialogTitle>
           </DialogHeader>
-          <div className="pt-[60px] h-[85vh]">
+          <div className="flex-1 min-h-0">
             {previewFile && (
               <FilePreview
                 filePath={previewFile.file_path}

@@ -1,5 +1,5 @@
 /**
- * ContestFilters — поиск, тип, статус, приоритет, сортировка, архив
+ * ContestFilters — компактная полоса: поиск + меню фильтров
  */
 import { useAppStore } from '@/stores/app-store';
 import { Input } from '@/components/ui/input';
@@ -24,13 +24,19 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-export function ContestFilters() {
+interface ContestFiltersProps {
+  /** Компактный режим (канбан) — без чипов */
+  compact?: boolean;
+}
+
+export function ContestFilters({ compact = false }: ContestFiltersProps) {
   const {
     searchQuery,
     setSearchQuery,
@@ -57,21 +63,15 @@ export function ContestFilters() {
     }
   };
 
-  const sortLabel =
-    sortBy === 'due_date'
-      ? 'По дедлайну'
-      : sortBy === 'created_at'
-        ? 'По созданию'
-        : sortBy === 'priority'
-          ? 'По приоритету'
-          : 'По алфавиту';
+  const activeFilterCount = [
+    statusFilter !== 'all',
+    taskTypeFilter !== 'all',
+    priorityFilter !== 'all',
+    !hideCompleted,
+  ].filter(Boolean).length;
 
   const hasActiveFilters =
-    searchQuery.trim() !== '' ||
-    statusFilter !== 'all' ||
-    taskTypeFilter !== 'all' ||
-    priorityFilter !== 'all' ||
-    !hideCompleted;
+    searchQuery.trim() !== '' || activeFilterCount > 0;
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -81,263 +81,224 @@ export function ContestFilters() {
     setHideCompleted(true);
   };
 
+  const filterSummary =
+    activeFilterCount > 0 ? `Фильтры · ${activeFilterCount}` : 'Фильтры';
+
   return (
-    <div className="flex flex-col gap-3 w-full min-w-0">
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full min-w-0">
+    <div className={cn('flex flex-col w-full min-w-0', compact ? 'gap-2' : 'gap-2.5')}>
+      <div className="flex gap-2 w-full min-w-0 items-center">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgb(var(--fg-muted))]" />
           <Input
-            placeholder="Поиск по названию..."
+            placeholder="Поиск..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-11 w-full"
+            className={cn('pl-9 w-full', compact ? 'h-10' : 'h-11')}
           />
         </div>
 
-        <div className="flex gap-2 shrink-0 overflow-x-auto no-scrollbar pb-0.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={cn(
+            'shrink-0',
+            compact ? 'h-10 w-10' : 'h-11 w-11',
+            !hideCompleted &&
+              'border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-900/30'
+          )}
+          onClick={() => {
+            const next = !hideCompleted;
+            setHideCompleted(next);
+            if (next && (statusFilter === 'done' || statusFilter === 'cancelled')) {
+              setStatusFilter('all');
+            }
+          }}
+          title={hideCompleted ? 'Показать готовые' : 'Скрыть готовые'}
+        >
+          {hideCompleted ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'shrink-0 gap-1.5 px-2.5 sm:px-3',
+                compact ? 'h-10' : 'h-11',
+                activeFilterCount > 0 &&
+                  'border-accent-300 bg-accent-50 dark:bg-accent-900/20'
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden xs:inline sm:inline text-sm">{filterSummary}</span>
+              {activeFilterCount > 0 && (
+                <span className="sm:hidden flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 text-[10px] font-bold text-white px-1">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 max-h-[70vh] overflow-y-auto">
+            <DropdownMenuLabel>Тип</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setTaskTypeFilter('all')}>
+              <span className={cn(taskTypeFilter === 'all' && 'font-bold text-accent-500')}>
+                Все типы
+              </span>
+            </DropdownMenuItem>
+            {TASK_TYPE_ORDER.map((type) => (
+              <DropdownMenuItem key={type} onClick={() => setTaskTypeFilter(type)}>
+                <span
+                  className={cn(
+                    taskTypeFilter === type && 'font-bold text-accent-500'
+                  )}
+                >
+                  {TASK_TYPE_LABELS[type]}
+                </span>
+              </DropdownMenuItem>
+            ))}
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Статус</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setStatusFilter('all')}>
+              <span className={cn(statusFilter === 'all' && 'font-bold text-accent-500')}>
+                Все статусы
+              </span>
+            </DropdownMenuItem>
+            {STATUS_ORDER.map((status) => (
+              <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>
+                <span
+                  className={cn(
+                    statusFilter === status && 'font-bold text-accent-500'
+                  )}
+                >
+                  {STATUS_LABELS[status]}
+                </span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuItem onClick={() => setStatusFilter('cancelled')}>
+              <span
+                className={cn(
+                  statusFilter === 'cancelled' && 'font-bold text-accent-500'
+                )}
+              >
+                {STATUS_LABELS.cancelled}
+              </span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Приоритет</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => setPriorityFilter('all')}>
+              <span className={cn(priorityFilter === 'all' && 'font-bold text-accent-500')}>
+                Любой
+              </span>
+            </DropdownMenuItem>
+            {PRIORITY_ORDER.map((p) => (
+              <DropdownMenuItem key={p} onClick={() => setPriorityFilter(p)}>
+                <span
+                  className={cn(priorityFilter === p && 'font-bold text-accent-500')}
+                >
+                  {PRIORITY_LABELS[p]}
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className={cn('shrink-0', compact ? 'h-10 w-10' : 'h-11 w-11')}
+              title="Сортировка"
+            >
+              <ArrowDownUp className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuGroup>
+              {(
+                [
+                  ['due_date', 'Дедлайн'],
+                  ['priority', 'Приоритет'],
+                  ['created_at', 'Дата создания'],
+                  ['title', 'Название'],
+                ] as const
+              ).map(([key, label]) => (
+                <DropdownMenuItem key={key} onClick={() => handleSortToggle(key)}>
+                  <span
+                    className={cn(
+                      'flex-1',
+                      sortBy === key && 'font-bold text-accent-500'
+                    )}
+                  >
+                    {label}
+                    {sortBy === key ? (sortOrder === 'asc' ? ' ↑' : ' ↓') : ''}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {hasActiveFilters && (
           <Button
             type="button"
-            variant="outline"
-            className={cn(
-              'h-11 gap-2 shrink-0',
-              hideCompleted
-                ? 'border-dashed'
-                : 'border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-900/30 dark:text-accent-300'
-            )}
-            onClick={() => {
-              const next = !hideCompleted;
-              setHideCompleted(next);
-              if (next && (statusFilter === 'done' || statusFilter === 'cancelled')) {
-                setStatusFilter('all');
-              }
-            }}
-            title={
-              hideCompleted
-                ? 'Готовые скрыты. Показать и готовые'
-                : 'Сейчас видны все. Скрыть готовые'
-            }
+            variant="ghost"
+            size="icon"
+            className={cn('shrink-0', compact ? 'h-10 w-10' : 'h-11 w-11')}
+            onClick={clearFilters}
+            title="Сбросить"
           >
-            {hideCompleted ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
-            <span className="whitespace-nowrap">
-              {hideCompleted ? 'Показать готовые' : 'Скрыть готовые'}
-            </span>
+            <X className="h-4 w-4" />
           </Button>
+        )}
+      </div>
 
-          {hasActiveFilters && (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 gap-1.5 shrink-0 text-[rgb(var(--fg-muted))]"
-              onClick={clearFilters}
-              title="Сбросить фильтры"
-            >
-              <X className="h-4 w-4" />
-              <span className="hidden sm:inline">Сброс</span>
-            </Button>
+      {/* Активные фильтры — короткие чипы */}
+      {!compact && activeFilterCount > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {taskTypeFilter !== 'all' && (
+            <Chip
+              label={TASK_TYPE_LABELS[taskTypeFilter]}
+              onClear={() => setTaskTypeFilter('all')}
+            />
           )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-11 gap-2 border-dashed">
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {taskTypeFilter === 'all'
-                    ? 'Тип: Все'
-                    : TASK_TYPE_LABELS[taskTypeFilter]}
-                </span>
-                <span className="sm:hidden">Тип</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setTaskTypeFilter('all')}>
-                <span
-                  className={cn(
-                    'flex-1',
-                    taskTypeFilter === 'all' && 'font-bold text-accent-500'
-                  )}
-                >
-                  Все типы
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {TASK_TYPE_ORDER.map((type) => (
-                <DropdownMenuItem key={type} onClick={() => setTaskTypeFilter(type)}>
-                  <span
-                    className={cn(
-                      'flex-1',
-                      taskTypeFilter === type && 'font-bold text-accent-500'
-                    )}
-                  >
-                    {TASK_TYPE_LABELS[type]}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-11 gap-2 border-dashed">
-                {statusFilter === 'all' ? 'Статус' : STATUS_LABELS[statusFilter]}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => setStatusFilter('all')}>
-                <span
-                  className={cn(
-                    'flex-1',
-                    statusFilter === 'all' && 'font-bold text-accent-500'
-                  )}
-                >
-                  Все статусы
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {STATUS_ORDER.map((status) => (
-                <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>
-                  <span
-                    className={cn(
-                      'flex-1',
-                      statusFilter === status && 'font-bold text-accent-500'
-                    )}
-                  >
-                    {STATUS_LABELS[status]}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setStatusFilter('cancelled')}>
-                <span
-                  className={cn(
-                    'flex-1',
-                    statusFilter === 'cancelled' && 'font-bold text-accent-500'
-                  )}
-                >
-                  {STATUS_LABELS.cancelled}
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-11 w-11 px-0 sm:w-auto sm:px-4 gap-2 border-dashed"
-              >
-                <ArrowDownUp className="h-4 w-4" />
-                <span className="hidden sm:inline">{sortLabel}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => handleSortToggle('due_date')}>
-                  <span
-                    className={cn(
-                      'flex-1',
-                      sortBy === 'due_date' && 'font-bold text-accent-500'
-                    )}
-                  >
-                    Дедлайн
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSortToggle('priority')}>
-                  <span
-                    className={cn(
-                      'flex-1',
-                      sortBy === 'priority' && 'font-bold text-accent-500'
-                    )}
-                  >
-                    Приоритет
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSortToggle('created_at')}>
-                  <span
-                    className={cn(
-                      'flex-1',
-                      sortBy === 'created_at' && 'font-bold text-accent-500'
-                    )}
-                  >
-                    Дата создания
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSortToggle('title')}>
-                  <span
-                    className={cn(
-                      'flex-1',
-                      sortBy === 'title' && 'font-bold text-accent-500'
-                    )}
-                  >
-                    Название
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {statusFilter !== 'all' && (
+            <Chip
+              label={STATUS_LABELS[statusFilter]}
+              onClear={() => setStatusFilter('all')}
+            />
+          )}
+          {priorityFilter !== 'all' && (
+            <Chip
+              label={PRIORITY_LABELS[priorityFilter]}
+              onClear={() => setPriorityFilter('all')}
+            />
+          )}
+          {!hideCompleted && (
+            <Chip label="С готовыми" onClear={() => setHideCompleted(true)} />
+          )}
         </div>
-      </div>
-
-      {/* Быстрые чипы типа на мобильных */}
-      <div className="flex overflow-x-auto no-scrollbar gap-1.5 pb-1 sm:hidden">
-        <FilterTab
-          label="Все"
-          active={taskTypeFilter === 'all'}
-          onClick={() => setTaskTypeFilter('all')}
-        />
-        {TASK_TYPE_ORDER.map((type) => (
-          <FilterTab
-            key={type}
-            label={TASK_TYPE_LABELS[type]}
-            active={taskTypeFilter === type}
-            onClick={() => setTaskTypeFilter(type)}
-          />
-        ))}
-      </div>
-
-      {/* Приоритет — чипы */}
-      <div className="flex overflow-x-auto no-scrollbar gap-1.5 pb-1">
-        <FilterTab
-          label="Любой приоритет"
-          active={priorityFilter === 'all'}
-          onClick={() => setPriorityFilter('all')}
-        />
-        {PRIORITY_ORDER.map((p) => (
-          <FilterTab
-            key={p}
-            label={PRIORITY_LABELS[p]}
-            active={priorityFilter === p}
-            onClick={() => setPriorityFilter(p)}
-          />
-        ))}
-      </div>
+      )}
     </div>
   );
 }
 
-function FilterTab({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function Chip({ label, onClear }: { label: string; onClear: () => void }) {
   return (
     <button
-      onClick={onClick}
-      className={cn(
-        'whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border',
-        active
-          ? 'bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900/30 dark:text-accent-300 dark:border-accent-800'
-          : 'bg-transparent text-[rgb(var(--fg-secondary))] border-[rgb(var(--border-default))] hover:bg-[rgb(var(--bg-secondary))]'
-      )}
+      type="button"
+      onClick={onClear}
+      className="inline-flex items-center gap-1 rounded-full border border-accent-200 bg-accent-50 dark:bg-accent-900/30 dark:border-accent-800 px-2.5 py-0.5 text-xs font-medium text-accent-700 dark:text-accent-300"
     >
       {label}
+      <X className="h-3 w-3 opacity-70" />
     </button>
   );
 }
