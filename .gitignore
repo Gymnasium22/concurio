@@ -36,3 +36,5 @@ mcps/
 /blob-report/
 /playwright/.cache/
 
+
+tmp-screens/
