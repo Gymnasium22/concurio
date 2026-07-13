@@ -116,13 +116,16 @@ export function ProfilePage() {
       </div>
 
       <div className="glass p-6 sm:p-8 rounded-3xl space-y-6">
-        <div className="rounded-2xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]/70 p-5 space-y-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="rounded-2xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]/70 p-4 sm:p-5 space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium">Текущий способ входа</p>
+              <p className="text-sm font-medium">Способ входа</p>
               <p className="text-sm text-[rgb(var(--fg-secondary))]">{authMethodLabel}</p>
             </div>
-            <div className="rounded-full bg-accent-100/70 px-3 py-1 text-xs font-medium text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 truncate max-w-[50%]">
+            <div
+              className="rounded-full bg-accent-100/70 px-3 py-1.5 text-xs font-medium text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 truncate max-w-full sm:max-w-[55%] self-start sm:self-auto"
+              title={user.display_name || user.email || undefined}
+            >
               {user.display_name || user.email || 'Аккаунт'}
             </div>
           </div>

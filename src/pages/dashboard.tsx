@@ -41,6 +41,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
@@ -180,10 +181,70 @@ export function Dashboard() {
             onChange={(e) => void handleImportFile(e.target.files?.[0])}
           />
 
+          {/* Mobile: одно меню — меньше шума (Создать уже в bottom nav) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 min-h-[40px] sm:hidden"
+                disabled={pdfBusy || importCsv.isPending}
+              >
+                Ещё
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem
+                disabled={importCsv.isPending}
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Импорт CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCsv} className="gap-2">
+                <Table className="h-4 w-4" />
+                Экспорт CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleIcs} className="gap-2">
+                <CalendarRange className="h-4 w-4" />
+                Экспорт ICS
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => void handlePdf()}
+                disabled={pdfBusy}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                Экспорт PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {(
+                [
+                  ['stats', 'Виджет: статистика'],
+                  ['deadlines', 'Виджет: дедлайны'],
+                  ['list', 'Виджет: список'],
+                  ['heatmap', 'Виджет: активность'],
+                  ['analytics', 'Виджет: аналитика'],
+                ] as const
+              ).map(([id, label]) => (
+                <DropdownMenuCheckboxItem
+                  key={id}
+                  checked={widgets.includes(id)}
+                  onCheckedChange={() => toggleWidget(id)}
+                >
+                  {label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Desktop / tablet: отдельные кнопки */}
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 min-h-[40px]"
+            className="gap-1.5 min-h-[40px] hidden sm:inline-flex"
             disabled={importCsv.isPending}
             onClick={() => fileInputRef.current?.click()}
           >
@@ -196,7 +257,7 @@ export function Dashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 min-h-[40px]"
+                className="gap-1.5 min-h-[40px] hidden sm:inline-flex"
                 disabled={pdfBusy}
               >
                 <Download className="h-4 w-4" />
@@ -226,7 +287,11 @@ export function Dashboard() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 min-h-[40px]">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 min-h-[40px] hidden sm:inline-flex"
+              >
                 Виджеты
                 <ChevronDown className="h-3.5 w-3.5 opacity-60" />
               </Button>
@@ -251,13 +316,6 @@ export function Dashboard() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Link to="/create" className="sm:hidden">
-            <Button size="sm" className="gap-2 min-h-[40px]">
-              <Plus className="h-4 w-4" />
-              Создать
-            </Button>
-          </Link>
         </div>
       </div>
 

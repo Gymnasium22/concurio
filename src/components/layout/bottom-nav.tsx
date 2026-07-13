@@ -20,11 +20,17 @@ export function BottomNav() {
   const location = useLocation();
   const isTg = useAppStore((s) => s.isTelegramApp);
 
+  // Формы: место под sticky submit / Telegram MainButton, без дубля с «+»
+  const hideOnRoute =
+    location.pathname === '/create' || /\/contest\/[^/]+\/edit$/.test(location.pathname);
+
+  if (hideOnRoute) return null;
+
   return (
     <nav
       className={cn(
         'fixed bottom-0 left-0 right-0 z-40 md:hidden',
-        /* над MainButton Telegram */
+        /* над MainButton Telegram (если вдруг показан) */
         'bottom-[var(--tg-main-button-space,0px)]'
       )}
       style={{
@@ -43,7 +49,8 @@ export function BottomNav() {
               path === '/'
                 ? location.pathname === '/' ||
                   location.pathname === '/contests' ||
-                  location.pathname.startsWith('/contest')
+                  (location.pathname.startsWith('/contest') &&
+                    !location.pathname.endsWith('/edit'))
                 : path === '/create'
                   ? location.pathname === '/create'
                   : location.pathname === path ||
@@ -63,11 +70,15 @@ export function BottomNav() {
               >
                 {accent ? (
                   <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/25 -mt-5 ring-4 ring-[rgb(var(--bg-primary))]">
-                    <Icon className="h-5 w-5 text-white" />
+                    <Icon className="h-5 w-5 text-white" aria-hidden />
+                    <span className="sr-only">{label}</span>
                   </div>
                 ) : (
                   <>
-                    <Icon className="h-5 w-5 shrink-0" strokeWidth={isActive ? 2.25 : 2} />
+                    <Icon
+                      className="h-5 w-5 shrink-0"
+                      strokeWidth={isActive ? 2.25 : 2}
+                    />
                     <span className="text-[10px] font-medium leading-none truncate max-w-full px-0.5">
                       {label}
                     </span>

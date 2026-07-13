@@ -11,7 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { CalendarIcon, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -24,6 +30,7 @@ import {
   PRIORITY_ORDER,
 } from '@/lib/constants';
 import { cn, isValidTelegramLink } from '@/lib/utils';
+import { isTelegramApp } from '@/lib/telegram';
 import type {
   Contest,
   ContestInsert,
@@ -51,7 +58,9 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
   );
   const [status, setStatus] = useState(initialData?.status || 'todo');
   const [taskType, setTaskType] = useState<TaskType>(initialData?.task_type || 'task');
-  const [priority, setPriority] = useState<TaskPriority>(initialData?.priority || 'medium');
+  const [priority, setPriority] = useState<TaskPriority>(
+    initialData?.priority || 'medium'
+  );
   const [links, setLinks] = useState<string[]>(initialData?.telegram_message_links || []);
   const [tagsInput, setTagsInput] = useState((initialData?.tags || []).join(', '));
   const [recurrence, setRecurrence] = useState<RecurrenceRule>(
@@ -349,11 +358,38 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
         </div>
       )}
 
-      <div className="pt-6 hidden sm:flex justify-end gap-3">
-        <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
+      {/*
+        Desktop: обычные кнопки.
+        Mobile browser: sticky-бар (раньше кнопки были hidden — нельзя создать).
+        Telegram Mini App: MainButton, этот блок скрыт на <sm.
+      */}
+      <div
+        className={cn(
+          'flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3',
+          isTelegramApp()
+            ? 'hidden sm:flex pt-6'
+            : [
+                'sticky bottom-0 z-10 -mx-4 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+                'mt-4 border-t border-[rgb(var(--border-default))]',
+                'bg-[rgb(var(--bg-card))]/95 backdrop-blur-md',
+                'sm:static sm:z-auto sm:mx-0 sm:px-0 sm:mt-6 sm:pt-6 sm:pb-0',
+                'sm:border-0 sm:bg-transparent sm:backdrop-blur-none',
+              ]
+        )}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          className="min-h-[44px] sm:min-h-0"
+          onClick={() => navigate(-1)}
+        >
           Отмена
         </Button>
-        <Button type="submit" disabled={!isFormValid || isSubmitting}>
+        <Button
+          type="submit"
+          className="min-h-[44px] sm:min-h-0 w-full sm:w-auto"
+          disabled={!isFormValid || isSubmitting}
+        >
           {isSubmitting ? 'Сохранение...' : isEdit ? 'Сохранить' : submitLabel}
         </Button>
       </div>

@@ -12,7 +12,7 @@ export function ContestEdit() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isTg = isTelegramApp();
-  
+
   const { data: contest, isLoading, error } = useContest(id);
 
   if (isLoading) {
@@ -36,14 +36,19 @@ export function ContestEdit() {
     <div className="space-y-6 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center gap-4">
         {!isTg && (
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-9 w-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="shrink-0 h-9 w-9"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Редактирование</h1>
       </div>
-      
-      <div className="glass p-6 sm:p-8 rounded-3xl">
+
+      <div className="glass p-4 sm:p-8 rounded-2xl sm:rounded-3xl pb-4 sm:pb-8 overflow-hidden">
         <ContestForm initialData={contest} isEdit />
       </div>
     </div>

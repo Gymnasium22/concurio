@@ -118,7 +118,7 @@ export function KanbanBoard() {
               isNarrow
                 ? 'w-[148px] sm:w-[160px] lg:w-[11%] lg:min-w-[7.5rem]'
                 : 'w-[min(240px,80vw)] sm:w-[250px] lg:flex-1 lg:min-w-0 lg:w-auto',
-              'min-h-[220px] max-h-[min(74vh,calc(var(--tg-viewport-stable-height,100dvh)-10rem))]',
+              'min-h-[200px] max-h-[min(62vh,calc(var(--tg-viewport-stable-height,100dvh)-12rem))]',
               'lg:max-h-none lg:min-h-[min(72vh,calc(100dvh-13rem))]',
               isDropTarget
                 ? 'border-accent-400 bg-accent-50/50 dark:bg-accent-900/25 ring-2 ring-accent-400/30'

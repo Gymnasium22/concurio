@@ -36,9 +36,10 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         'fixed z-50 w-full bg-[rgb(var(--bg-card))] border border-[rgb(var(--border-default))] shadow-2xl duration-300',
-        /* mobile / Telegram: bottom sheet */
-        'left-0 right-0 bottom-0 top-auto max-h-[min(92dvh,var(--tg-viewport-stable-height,92dvh))]',
-        'rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]',
+        /* mobile / Telegram: bottom sheet над safe-area + MainButton */
+        'left-0 right-0 bottom-0 top-auto max-h-[min(90dvh,var(--tg-viewport-stable-height,90dvh))]',
+        'rounded-t-2xl p-4',
+        'pb-[max(1rem,calc(env(safe-area-inset-bottom,0px)+var(--tg-main-button-space,0px)+0.5rem))]',
         'overflow-y-auto overscroll-contain',
         /* desktop: настоящий centered modal (обязательно сбросить bottom!) */
         'sm:left-1/2 sm:right-auto sm:top-1/2 sm:bottom-auto sm:max-w-lg',

@@ -8,7 +8,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const variantStyles = {
   default: 'bg-[rgb(var(--bg-card))] border-[rgb(var(--border-default))]',
-  success: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800',
+  success:
+    'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800',
   error: 'bg-red-50 border-red-200 dark:bg-red-900/30 dark:border-red-800',
   warning: 'bg-amber-50 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800',
 };
@@ -31,7 +32,14 @@ export function Toaster() {
   const { toasts } = useToast();
 
   return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div
+      className={cn(
+        'fixed z-[100] flex flex-col gap-2 max-w-sm w-[calc(100%-2rem)] sm:w-full pointer-events-none',
+        /* над bottom nav / MainButton на mobile; справа снизу на desktop */
+        'left-4 right-4 bottom-[calc(5.25rem+env(safe-area-inset-bottom,0px)+var(--tg-main-button-space,0px))]',
+        'md:left-auto md:right-4 md:bottom-4'
+      )}
+    >
       <AnimatePresence mode="popLayout">
         {toasts.map((t) => {
           const variant = t.variant ?? 'default';
@@ -50,11 +58,15 @@ export function Toaster() {
                 variantStyles[variant]
               )}
             >
-              <Icon className={cn('h-5 w-5 mt-0.5 shrink-0', variantIconColors[variant])} />
+              <Icon
+                className={cn('h-5 w-5 mt-0.5 shrink-0', variantIconColors[variant])}
+              />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{t.title}</p>
                 {t.description && (
-                  <p className="text-xs text-[rgb(var(--fg-secondary))] mt-1">{t.description}</p>
+                  <p className="text-xs text-[rgb(var(--fg-secondary))] mt-1">
+                    {t.description}
+                  </p>
                 )}
               </div>
               <button

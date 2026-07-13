@@ -178,7 +178,8 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {!isTg && <ThemeToggle />}
+            {/* Тема на mobile — в профиле; в шапке только tablet+ (и не в TG) */}
+            {!isTg && <ThemeToggle className="hidden sm:inline-flex" />}
             <ShareDialog />
             <AccountSettings />
             <Link to="/create" className="hidden md:block">
