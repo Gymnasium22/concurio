@@ -137,6 +137,17 @@ export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
   urgent: 4,
 };
 
+/** Повтор задачи */
+export const RECURRENCE_LABELS: Record<
+  'none' | 'daily' | 'weekly' | 'monthly',
+  string
+> = {
+  none: 'Без повтора',
+  daily: 'Каждый день',
+  weekly: 'Каждую неделю',
+  monthly: 'Каждый месяц',
+};
+
 /** Допустимые типы файлов */
 export const ACCEPTED_FILE_TYPES = {
   'application/pdf': ['.pdf'],

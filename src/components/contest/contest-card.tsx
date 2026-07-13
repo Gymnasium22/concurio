@@ -13,6 +13,7 @@ import {
   Flag,
   CheckCircle2,
   Play,
+  Repeat,
 } from 'lucide-react';
 import { formatDate, getDeadlineUrgency, getUrgencyColor, cn } from '@/lib/utils';
 import {
@@ -22,6 +23,7 @@ import {
   PRIORITY_COLORS,
   PRIORITY_BAR,
   STATUS_DEFAULT_PROGRESS,
+  RECURRENCE_LABELS,
 } from '@/lib/constants';
 import type { Contest } from '@/types';
 import { motion } from 'framer-motion';
@@ -197,6 +199,14 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                   <span className="truncate">{formatDate(contest.due_date)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[rgb(var(--fg-muted))] shrink-0">
+                  {contest.recurrence && contest.recurrence !== 'none' && (
+                    <span
+                      className="flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400"
+                      title={RECURRENCE_LABELS[contest.recurrence]}
+                    >
+                      <Repeat className="h-3 w-3" />
+                    </span>
+                  )}
                   {hasLinks ? (
                     <span className="flex items-center gap-0.5 text-[10px]">
                       <MessageCircle className="h-3 w-3" />

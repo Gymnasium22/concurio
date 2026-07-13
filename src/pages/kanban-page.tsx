@@ -7,7 +7,7 @@ export function KanbanPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Канбан</h1>
         <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
-          Перетаскивайте задачи между колонками кнопками «→ статус»
+          Перетащите карточку в другую колонку или нажмите «→ статус»
         </p>
       </div>
       <ContestFilters />

@@ -1,5 +1,5 @@
 /**
- * ContestDetail — полная информация о конкурсе
+ * ContestDetail — полная информация о задаче / конкурсе
  */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -16,7 +16,7 @@ import { CommentsTimeline } from '@/components/task/comments-timeline';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Calendar, Clock, CheckCircle2, Tag } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Tag, Repeat } from 'lucide-react';
 import { formatDate, getTimeLeft, cn } from '@/lib/utils';
 import {
   STATUS_ORDER,
@@ -26,6 +26,7 @@ import {
   TASK_TYPE_COLORS,
   PRIORITY_LABELS,
   PRIORITY_COLORS,
+  RECURRENCE_LABELS,
 } from '@/lib/constants';
 import type { Contest, ContestStatus, Attachment } from '@/types';
 
@@ -82,6 +83,12 @@ export function ContestDetail({ contest }: ContestDetailProps) {
               />
               {PRIORITY_LABELS[contest.priority] ?? 'Средний'}
             </span>
+            {contest.recurrence && contest.recurrence !== 'none' && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
+                <Repeat className="h-3 w-3" />
+                {RECURRENCE_LABELS[contest.recurrence] ?? contest.recurrence}
+              </span>
+            )}
           </div>
 
           {contest.due_date && (
@@ -185,7 +192,8 @@ export function ContestDetail({ contest }: ContestDetailProps) {
         </div>
         <Progress value={contest.progress} className="h-3" />
         <p className="text-xs text-[rgb(var(--fg-muted))] mt-3">
-          * Прогресс обновляется автоматически при смене статуса, либо его можно изменить вручную при редактировании.
+          Считается из чек-листа; без пунктов — от статуса или кнопки «+10%» на
+          карточке.
         </p>
       </div>
 

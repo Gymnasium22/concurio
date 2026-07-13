@@ -3,8 +3,17 @@ import { useAuth } from '@/hooks/use-auth';
 import { isTelegramApp, openTelegramBindingLink } from '@/lib/telegram';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { LogOut, Link2, Unlink2, Mail, ShieldCheck, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import {
+  LogOut,
+  Link2,
+  Unlink2,
+  Mail,
+  ShieldCheck,
+  ArrowLeft,
+  FolderOpen,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -97,13 +106,13 @@ export function ProfilePage() {
 
       <div className="glass p-6 sm:p-8 rounded-3xl space-y-6">
         <div className="rounded-2xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))]/70 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-sm font-medium">Текущий способ входа</p>
               <p className="text-sm text-[rgb(var(--fg-secondary))]">{authMethodLabel}</p>
             </div>
-            <div className="rounded-full bg-accent-100/70 px-3 py-1 text-xs font-medium text-accent-700 dark:bg-accent-900/30 dark:text-accent-300">
-              {user.email ?? 'Аккаунт'}
+            <div className="rounded-full bg-accent-100/70 px-3 py-1 text-xs font-medium text-accent-700 dark:bg-accent-900/30 dark:text-accent-300 truncate max-w-[50%]">
+              {user.display_name || user.email || 'Аккаунт'}
             </div>
           </div>
           <div className="flex items-center justify-between border-t border-[rgb(var(--border-default))] pt-3">
@@ -111,6 +120,20 @@ export function ProfilePage() {
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isTelegramLinked ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
               {isTelegramLinked ? 'Привязан' : 'Не привязан'}
             </span>
+          </div>
+        </div>
+
+        {/* Быстрые разделы — особенно на мобиле, где нет desktop-nav */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Button asChild variant="outline" className="h-11 justify-start gap-2">
+            <Link to="/gallery">
+              <FolderOpen className="h-4 w-4 text-accent-500" />
+              Галерея файлов
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--border-default))] px-3 h-11">
+            <span className="text-sm text-[rgb(var(--fg-secondary))] shrink-0">Тема</span>
+            <ThemeToggle />
           </div>
         </div>
 

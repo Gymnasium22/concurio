@@ -1,8 +1,7 @@
 /**
- * Dashboard — список задач + обзор + PDF-отчёт
- * Канбан и календарь — отдельные экраны (/kanban, /calendar)
+ * Dashboard — список задач + обзор + экспорт
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useContests,
   useDashboardStats,
@@ -16,13 +15,27 @@ import { ContestFilters } from '@/components/dashboard/contest-filters';
 import { ContestCard } from '@/components/contest/contest-card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ListTodo, Plus, FileDown, Table, CalendarRange } from 'lucide-react';
+import {
+  ListTodo,
+  Plus,
+  FileDown,
+  Table,
+  CalendarRange,
+  Download,
+  ChevronDown,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadTasksPdfReport } from '@/lib/pdf-report';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/components/ui/use-toast';
 import { useAppStore } from '@/stores/app-store';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const PAGE_SIZE = 20;
 
@@ -32,8 +45,18 @@ export function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const hideCompleted = useAppStore((s) => s.hideCompleted);
+  const searchQuery = useAppStore((s) => s.searchQuery);
+  const statusFilter = useAppStore((s) => s.statusFilter);
+  const taskTypeFilter = useAppStore((s) => s.taskTypeFilter);
+  const priorityFilter = useAppStore((s) => s.priorityFilter);
+
   const [pdfBusy, setPdfBusy] = useState(false);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Сброс пагинации при смене фильтров
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [searchQuery, statusFilter, hideCompleted, taskTypeFilter, priorityFilter]);
 
   const visibleContests = useMemo(
     () => (contests ?? []).slice(0, visibleCount),
@@ -83,68 +106,92 @@ export function Dashboard() {
   };
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
-      <div className="md:hidden pt-2 pb-2">
+    <div className="space-y-5 sm:space-y-8 animate-in fade-in duration-500">
+      <div className="md:hidden pt-1">
         <h1 className="text-2xl font-bold tracking-tight">Мои задачи</h1>
         <p className="text-sm text-[rgb(var(--fg-muted))] mt-1">
-          Активные задачи, дедлайны и PDF-отчёт
+          Обзор, дедлайны и список
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <h2 className="text-sm font-medium text-[rgb(var(--fg-secondary))] mb-3 uppercase tracking-wider hidden md:block">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
+        <div className="lg:col-span-2 space-y-3">
+          <h2 className="text-sm font-medium text-[rgb(var(--fg-secondary))] uppercase tracking-wider hidden md:block">
             Обзор
           </h2>
           <StatsCards />
         </div>
-        <div>
-          <h2 className="text-sm font-medium text-[rgb(var(--fg-secondary))] mb-3 uppercase tracking-wider hidden md:block">
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium text-[rgb(var(--fg-secondary))] uppercase tracking-wider hidden md:block">
             Внимание
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <DeadlineList />
-            <ActivityHeatmap />
+            <div className="hidden sm:block">
+              <ActivityHeatmap />
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Heatmap на мобиле — ниже, не сжимает дедлайны */}
+      <div className="sm:hidden">
+        <ActivityHeatmap />
+      </div>
+
       <div className="space-y-4 pt-4 border-t border-[rgb(var(--border-default))]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-xl font-bold">
               {hideCompleted ? 'Активные задачи' : 'Все задачи'}
             </h2>
+            {contests && contests.length > 0 && (
+              <p className="text-xs text-[rgb(var(--fg-muted))] mt-0.5">
+                {contests.length}{' '}
+                {contests.length === 1
+                  ? 'задача'
+                  : contests.length < 5
+                    ? 'задачи'
+                    : 'задач'}
+                {hasMore ? ` · показано ${visibleContests.length}` : ''}
+              </p>
+            )}
           </div>
+
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 shrink-0 min-h-[40px]"
-              onClick={handleCsv}
-            >
-              <Table className="h-4 w-4" />
-              CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 shrink-0 min-h-[40px]"
-              onClick={handleIcs}
-            >
-              <CalendarRange className="h-4 w-4" />
-              ICS
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 shrink-0 min-h-[40px]"
-              onClick={handlePdf}
-              disabled={pdfBusy}
-            >
-              <FileDown className="h-4 w-4" />
-              PDF
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 shrink-0 min-h-[40px]"
+                  disabled={pdfBusy}
+                >
+                  <Download className="h-4 w-4" />
+                  Экспорт
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleCsv} className="gap-2">
+                  <Table className="h-4 w-4" />
+                  CSV (таблица)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleIcs} className="gap-2">
+                  <CalendarRange className="h-4 w-4" />
+                  ICS (календарь)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void handlePdf()}
+                  disabled={pdfBusy}
+                  className="gap-2"
+                >
+                  <FileDown className="h-4 w-4" />
+                  PDF-отчёт
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Link to="/create" className="hidden md:block">
               <Button size="sm" className="gap-2">
                 <Plus className="h-4 w-4" />
@@ -166,20 +213,20 @@ export function Dashboard() {
             ))}
           </div>
         ) : !contests || contests.length === 0 ? (
-          <div className="glass-subtle p-12 rounded-3xl flex flex-col items-center justify-center text-center border-dashed border-2 border-[rgb(var(--border-default))]">
+          <div className="glass-subtle p-10 sm:p-12 rounded-3xl flex flex-col items-center justify-center text-center border-dashed border-2 border-[rgb(var(--border-default))]">
             <div className="h-16 w-16 rounded-full bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center mb-4">
               <ListTodo className="h-8 w-8 text-accent-500" />
             </div>
             <h3 className="text-lg font-bold mb-2">
               {hideCompleted ? 'Нет активных задач' : 'Здесь пока пусто'}
             </h3>
-            <p className="text-[rgb(var(--fg-secondary))] mb-6 max-w-sm">
+            <p className="text-[rgb(var(--fg-secondary))] mb-6 max-w-sm text-sm">
               {hideCompleted
-                ? 'Все задачи выполнены или скройте фильтр «Скрыть готовые», чтобы увидеть архив.'
+                ? 'Всё сделано — или нажмите «Показать готовые», чтобы увидеть архив.'
                 : 'Добавьте конкурс, задачу или напоминание.'}
             </p>
             <Link to="/create">
-              <Button className="gap-2">
+              <Button className="gap-2 min-h-[44px]">
                 <Plus className="h-4 w-4" />
                 Создать задачу
               </Button>
@@ -188,7 +235,7 @@ export function Dashboard() {
         ) : (
           <div className="space-y-4">
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch auto-rows-fr"
+              className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-stretch auto-rows-fr"
               layout
             >
               <AnimatePresence mode="popLayout">
@@ -198,9 +245,10 @@ export function Dashboard() {
               </AnimatePresence>
             </motion.div>
             {hasMore && (
-              <div className="flex justify-center pt-2">
+              <div className="flex justify-center pt-1 pb-2">
                 <Button
                   variant="outline"
+                  className="min-h-[44px] w-full sm:w-auto"
                   onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
                 >
                   Показать ещё ({(contests?.length ?? 0) - visibleCount})

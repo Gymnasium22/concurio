@@ -5,10 +5,11 @@ import { useAppStore } from '@/stores/app-store';
 import { Input } from '@/components/ui/input';
 import {
   Search,
+  Eye,
+  EyeOff,
   SlidersHorizontal,
   ArrowDownUp,
-  Archive,
-  ArchiveRestore,
+  X,
 } from 'lucide-react';
 import {
   STATUS_LABELS,
@@ -65,54 +66,79 @@ export function ContestFilters() {
           ? 'По приоритету'
           : 'По алфавиту';
 
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    statusFilter !== 'all' ||
+    taskTypeFilter !== 'all' ||
+    priorityFilter !== 'all' ||
+    !hideCompleted;
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setTaskTypeFilter('all');
+    setPriorityFilter('all');
+    setHideCompleted(true);
+  };
+
   return (
     <div className="flex flex-col gap-3 w-full min-w-0">
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full min-w-0">
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgb(var(--fg-muted))]" />
           <Input
-            placeholder="Поиск..."
+            placeholder="Поиск по названию..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-11 w-full"
           />
         </div>
 
-        <div className="flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 shrink-0 overflow-x-auto no-scrollbar pb-0.5">
           <Button
             type="button"
             variant="outline"
             className={cn(
-              'h-11 gap-2 border-dashed shrink-0',
-              !hideCompleted &&
-                'border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-900/30 dark:text-accent-300'
+              'h-11 gap-2 shrink-0',
+              hideCompleted
+                ? 'border-dashed'
+                : 'border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-900/30 dark:text-accent-300'
             )}
             onClick={() => {
               const next = !hideCompleted;
               setHideCompleted(next);
-              // При скрытии архива сбрасываем фильтр «Готово/Отменён», чтобы не остаться на пустом списке
               if (next && (statusFilter === 'done' || statusFilter === 'cancelled')) {
                 setStatusFilter('all');
               }
             }}
             title={
               hideCompleted
-                ? 'Готовые скрыты. Нажмите, чтобы показать архив'
-                : 'Показаны все задачи. Нажмите, чтобы скрыть готовые'
+                ? 'Готовые скрыты. Показать и готовые'
+                : 'Сейчас видны все. Скрыть готовые'
             }
           >
             {hideCompleted ? (
-              <Archive className="h-4 w-4" />
+              <EyeOff className="h-4 w-4" />
             ) : (
-              <ArchiveRestore className="h-4 w-4" />
+              <Eye className="h-4 w-4" />
             )}
-            <span className="hidden sm:inline">
-              {hideCompleted ? 'Архив' : 'Только активные'}
-            </span>
-            <span className="sm:hidden">
-              {hideCompleted ? 'Архив' : 'Активные'}
+            <span className="whitespace-nowrap">
+              {hideCompleted ? 'Показать готовые' : 'Скрыть готовые'}
             </span>
           </Button>
+
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 gap-1.5 shrink-0 text-[rgb(var(--fg-muted))]"
+              onClick={clearFilters}
+              title="Сбросить фильтры"
+            >
+              <X className="h-4 w-4" />
+              <span className="hidden sm:inline">Сброс</span>
+            </Button>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

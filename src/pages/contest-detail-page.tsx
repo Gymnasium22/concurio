@@ -29,13 +29,19 @@ export function ContestDetailPage() {
   useTelegramBackButton(() => navigate(-1));
 
   const handleDelete = async () => {
-    if (!confirm('Вы уверены, что хотите удалить этот конкурс? Все вложенные файлы также будут удалены.')) return;
-    
+    if (
+      !confirm(
+        'Удалить задачу? Подзадачи и вложенные файлы тоже будут удалены.'
+      )
+    ) {
+      return;
+    }
+
     try {
       await deleteMutation.mutateAsync(id!);
-      toast({ title: 'Конкурс удалён', variant: 'success' });
+      toast({ title: 'Задача удалена', variant: 'success' });
       navigate('/', { replace: true });
-    } catch (err) {
+    } catch {
       toast({ title: 'Ошибка удаления', variant: 'error' });
     }
   };
@@ -51,7 +57,7 @@ export function ContestDetailPage() {
   if (error || !contest) {
     return (
       <div className="text-center p-12">
-        <p className="text-red-500 mb-4">Конкурс не найден или удалён</p>
+        <p className="text-red-500 mb-4">Задача не найдена или удалена</p>
         <Button onClick={() => navigate('/')}>На главную</Button>
       </div>
     );
