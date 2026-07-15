@@ -24,7 +24,7 @@ import {
   PRIORITY_LABELS,
   PRIORITY_COLORS,
   PRIORITY_BAR,
-  STATUS_DEFAULT_PROGRESS,
+  progressForStatusChange,
   RECURRENCE_LABELS,
 } from '@/lib/constants';
 import type { Contest } from '@/types';
@@ -49,20 +49,26 @@ interface ContestCardProps {
 const CARD_MIN_H = 'min-h-[132px] sm:min-h-[140px] h-full';
 
 export function ContestCard({ contest, index }: ContestCardProps) {
+  const stageDue = contest.next_stage_due_date ?? null;
+  const stageTitle = contest.next_stage_title ?? null;
+  const showStageDue = !!stageDue;
+  /** На карточке: дедлайн задачи, плюс ближайший этап если есть */
   const urgency = getDeadlineUrgency(contest.due_date);
   const urgencyColor = getUrgencyColor(urgency);
+  const stageUrgency = getDeadlineUrgency(stageDue);
+  const stageUrgencyColor = getUrgencyColor(stageUrgency);
+  const subCount = contest.subtask_count ?? 0;
+  const subDone = contest.subtask_done_count ?? 0;
   const hasLinks =
     contest.telegram_message_links && contest.telegram_message_links.length > 0;
   const typeStyle = TASK_TYPE_COLORS[contest.task_type] ?? TASK_TYPE_COLORS.task;
-  const priorityStyle =
-    PRIORITY_COLORS[contest.priority] ?? PRIORITY_COLORS.medium;
+  const priorityStyle = PRIORITY_COLORS[contest.priority] ?? PRIORITY_COLORS.medium;
 
   const updateStatus = useUpdateContestStatus();
   const updateContest = useUpdateContest();
   const { toast } = useToast();
 
-  const showActions =
-    contest.status !== 'done' && contest.status !== 'cancelled';
+  const showActions = contest.status !== 'done' && contest.status !== 'cancelled';
   const busy = updateStatus.isPending || updateContest.isPending;
 
   const markDone = async () => {
@@ -81,7 +87,7 @@ export function ContestCard({ contest, index }: ContestCardProps) {
     await updateStatus.mutateAsync({
       id: contest.id,
       status: 'in_progress',
-      progress: Math.max(contest.progress, STATUS_DEFAULT_PROGRESS.in_progress),
+      progress: progressForStatusChange('in_progress', contest.progress),
     });
     await logActivity(contest.id, 'status_change', { status: 'in_progress' });
     toast({ title: 'В работе', variant: 'success' });
@@ -90,19 +96,30 @@ export function ContestCard({ contest, index }: ContestCardProps) {
   const bumpProgress = async () => {
     haptic.medium();
     const next = Math.min(100, contest.progress + 10);
-    const status =
-      next >= 100
-        ? 'done'
-        : contest.status === 'todo'
-          ? 'in_progress'
-          : contest.status;
+    // 100% → Готово; 85–99% → На проверке (если ещё не готово); иначе В работе
+    let status = contest.status;
+    if (next >= 100) {
+      status = 'done';
+    } else if (next >= 85 && contest.status !== 'done') {
+      status = 'review';
+    } else if (contest.status === 'todo') {
+      status = 'in_progress';
+    }
     await updateContest.mutateAsync({
       id: contest.id,
       progress: next,
       status,
     });
-    await logActivity(contest.id, 'progress_change', { progress: next });
-    toast({ title: `Прогресс ${next}%`, variant: 'success' });
+    await logActivity(contest.id, 'progress_change', { progress: next, status });
+    toast({
+      title:
+        status === 'done'
+          ? 'Готово (100%)'
+          : status === 'review' && contest.status !== 'review'
+            ? `На проверке · ${next}%`
+            : `Прогресс ${next}%`,
+      variant: 'success',
+    });
   };
 
   return (
@@ -156,9 +173,7 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                       priorityStyle.bg
                     )}
                   >
-                    <span
-                      className={cn('h-1 w-1 rounded-full', priorityStyle.dot)}
-                    />
+                    <span className={cn('h-1 w-1 rounded-full', priorityStyle.dot)} />
                     {PRIORITY_LABELS[contest.priority] ?? 'Средний'}
                   </span>
                 </div>
@@ -191,6 +206,14 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                     <span className="truncate">{formatDate(contest.due_date)}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-[rgb(var(--fg-muted))] shrink-0">
+                    {subCount > 0 && (
+                      <span
+                        className="text-[10px] tabular-nums"
+                        title={`Подзадачи: ${subDone} из ${subCount}`}
+                      >
+                        {subDone}/{subCount}
+                      </span>
+                    )}
                     {contest.recurrence && contest.recurrence !== 'none' && (
                       <span
                         className="flex items-center text-violet-600 dark:text-violet-400"
@@ -211,6 +234,26 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                     <ChevronRight className="h-3.5 w-3.5 hidden sm:block group-hover:text-accent-500" />
                   </div>
                 </div>
+
+                {showStageDue && (
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 text-[10px] font-medium truncate',
+                      stageUrgencyColor
+                    )}
+                    title={
+                      stageTitle
+                        ? `Ближайший этап: ${stageTitle}`
+                        : 'Ближайший дедлайн подзадачи'
+                    }
+                  >
+                    <span className="text-[rgb(var(--fg-muted))] shrink-0">Этап:</span>
+                    <span className="truncate">
+                      {stageTitle ? `${stageTitle} · ` : ''}
+                      {formatDate(stageDue)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2">
                   <Progress value={contest.progress} className="h-1.5 flex-1" />

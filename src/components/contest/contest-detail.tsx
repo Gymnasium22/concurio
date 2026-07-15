@@ -1,9 +1,13 @@
 /**
  * ContestDetail — полная информация о задаче / конкурсе
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useUpdateContestStatus } from '@/hooks/use-contests';
+import {
+  useSubtasks,
+  useUpdateContest,
+  useUpdateContestStatus,
+} from '@/hooks/use-contests';
 import { logActivity } from '@/hooks/use-task-extras';
 import { StatusBadge } from '@/components/contest/status-badge';
 import { TelegramLinks } from '@/components/contest/telegram-links';
@@ -21,7 +25,9 @@ import { formatDate, getTimeLeft, cn } from '@/lib/utils';
 import {
   STATUS_ORDER,
   STATUS_LABELS,
-  STATUS_DEFAULT_PROGRESS,
+  STATUS_HINTS,
+  progressForStatusChange,
+  statusFromProgress,
   TASK_TYPE_LABELS,
   TASK_TYPE_COLORS,
   PRIORITY_LABELS,
@@ -36,18 +42,49 @@ interface ContestDetailProps {
 
 export function ContestDetail({ contest }: ContestDetailProps) {
   const updateStatusMutation = useUpdateContestStatus();
+  const updateContest = useUpdateContest();
+  const { data: subtasks } = useSubtasks(contest.parent_id ? undefined : contest.id);
+  const hasSubtasks = (subtasks?.length ?? 0) > 0;
   const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
+  const [sliderValue, setSliderValue] = useState(contest.progress);
+
+  useEffect(() => {
+    setSliderValue(contest.progress);
+  }, [contest.progress, contest.id]);
 
   const handleStatusChange = async (newStatus: ContestStatus) => {
     if (contest.status === newStatus) return;
     await updateStatusMutation.mutateAsync({
       id: contest.id,
       status: newStatus,
-      progress: STATUS_DEFAULT_PROGRESS[newStatus],
+      progress: progressForStatusChange(newStatus, contest.progress),
     });
     await logActivity(contest.id, 'status_change', {
       status: newStatus,
       from: contest.status,
+    });
+  };
+
+  const commitProgress = async (raw: number) => {
+    const progress = Math.max(0, Math.min(100, Math.round(raw)));
+    if (progress === contest.progress && contest.status !== 'cancelled') {
+      // still allow status sync if percent matches but status drifted
+    }
+    if (contest.status === 'cancelled') return;
+
+    const status = statusFromProgress(progress, contest.status);
+    if (progress === contest.progress && status === contest.status) return;
+
+    await updateContest.mutateAsync({
+      id: contest.id,
+      progress,
+      status,
+      completed_at: status === 'done' ? new Date().toISOString() : null,
+    });
+    await logActivity(contest.id, 'progress_change', {
+      progress,
+      status,
+      source: 'slider',
     });
   };
 
@@ -119,46 +156,89 @@ export function ContestDetail({ contest }: ContestDetailProps) {
           </div>
         )}
 
-        {/* Степпер статусов */}
-        <div className="mt-2 relative">
-          <div className="absolute top-1/2 left-0 right-0 h-1 bg-[rgb(var(--border-default))] -translate-y-1/2 rounded-full hidden sm:block" />
-          
+        {/* Степпер статусов: «На проверке» ≠ «Готово» */}
+        <div className="mt-2 relative space-y-3">
+          <div className="absolute top-4 left-0 right-0 h-1 bg-[rgb(var(--border-default))] rounded-full hidden sm:block" />
+
           <div className="relative flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
             {STATUS_ORDER.map((status, index) => {
+              const currentIdx =
+                contest.status === 'cancelled'
+                  ? -1
+                  : STATUS_ORDER.indexOf(contest.status);
               const isActive = contest.status === status;
-              const isPast = STATUS_ORDER.indexOf(contest.status) > index;
+              const isPast = currentIdx > index;
+              const isFullyDone = contest.status === 'done' && status === 'done';
               const isCancelled = contest.status === 'cancelled';
-              
+
               return (
                 <button
                   key={status}
-                  onClick={() => handleStatusChange(status)}
+                  type="button"
+                  onClick={() => void handleStatusChange(status)}
                   disabled={updateStatusMutation.isPending || isCancelled}
+                  title={STATUS_HINTS[status]}
                   className={cn(
-                    "flex sm:flex-col items-center gap-3 sm:gap-2 group transition-all text-left sm:text-center",
-                    isCancelled ? "opacity-50 grayscale cursor-not-allowed" : "cursor-pointer"
+                    'flex sm:flex-col items-center gap-3 sm:gap-2 group transition-all text-left sm:text-center sm:max-w-[5.5rem]',
+                    isCancelled
+                      ? 'opacity-50 grayscale cursor-not-allowed'
+                      : 'cursor-pointer'
                   )}
                 >
-                  <div className={cn(
-                    "relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all bg-[rgb(var(--bg-card))]",
-                    isActive ? "border-accent-500 text-accent-500 scale-110 shadow-lg shadow-accent-500/20" : 
-                    isPast ? "border-emerald-500 text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30" : 
-                    "border-[rgb(var(--border-strong))] text-[rgb(var(--fg-muted))] group-hover:border-accent-300"
-                  )}>
-                    {isPast ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">{index + 1}</span>}
+                  <div
+                    className={cn(
+                      'relative z-10 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all bg-[rgb(var(--bg-card))]',
+                      isFullyDone || (isActive && status === 'done')
+                        ? 'border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 scale-110 shadow-lg shadow-emerald-500/20'
+                        : isActive && status === 'review'
+                          ? 'border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-900/30 scale-110 shadow-lg shadow-amber-500/20'
+                          : isActive
+                            ? 'border-accent-500 text-accent-500 scale-110 shadow-lg shadow-accent-500/20'
+                            : isPast
+                              ? 'border-accent-400/70 text-accent-500 bg-accent-50/80 dark:bg-accent-900/20'
+                              : 'border-[rgb(var(--border-strong))] text-[rgb(var(--fg-muted))] group-hover:border-accent-300'
+                    )}
+                  >
+                    {isFullyDone || (isPast && status === 'done') ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : isPast ? (
+                      <span className="text-xs font-bold opacity-80">{index + 1}</span>
+                    ) : (
+                      <span className="text-xs font-bold">{index + 1}</span>
+                    )}
                   </div>
-                  <span className={cn(
-                    "text-xs font-medium transition-colors",
-                    isActive ? "text-accent-500 font-bold" : 
-                    isPast ? "text-emerald-600 dark:text-emerald-400" : 
-                    "text-[rgb(var(--fg-secondary))]"
-                  )}>
+                  <span
+                    className={cn(
+                      'text-xs font-medium transition-colors',
+                      isActive && status === 'done'
+                        ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                        : isActive && status === 'review'
+                          ? 'text-amber-600 dark:text-amber-400 font-bold'
+                          : isActive
+                            ? 'text-accent-500 font-bold'
+                            : isPast
+                              ? 'text-[rgb(var(--fg-secondary))]'
+                              : 'text-[rgb(var(--fg-secondary))]'
+                    )}
+                  >
                     {STATUS_LABELS[status]}
                   </span>
                 </button>
               );
             })}
           </div>
+
+          <p className="text-[11px] text-[rgb(var(--fg-muted))] leading-relaxed">
+            {contest.status === 'cancelled'
+              ? STATUS_HINTS.cancelled
+              : STATUS_HINTS[contest.status]}
+            {contest.status === 'review' && (
+              <span className="block mt-0.5 text-amber-600 dark:text-amber-400">
+                Чтобы закрыть задачу, нажмите «Готово» — только тогда она уйдёт из
+                активных.
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Отменён (если применимо) */}
@@ -166,7 +246,12 @@ export function ContestDetail({ contest }: ContestDetailProps) {
           <div className="mt-2 p-3 rounded-lg bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:border-red-800/50 text-sm font-medium text-center">
             Задача отменена. Можно вернуть её в работу, выбрав другой статус.
             <div className="mt-2">
-              <Button size="sm" variant="outline" onClick={() => handleStatusChange('todo')} className="bg-white dark:bg-black">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleStatusChange('todo')}
+                className="bg-white dark:bg-black"
+              >
                 Вернуть в работу
               </Button>
             </div>
@@ -177,23 +262,79 @@ export function ContestDetail({ contest }: ContestDetailProps) {
       {/* Описание */}
       {contest.description && (
         <div className="glass-subtle p-5 sm:p-6 rounded-2xl">
-          <h3 className="text-sm font-medium text-[rgb(var(--fg-secondary))] mb-2">Описание</h3>
+          <h3 className="text-sm font-medium text-[rgb(var(--fg-secondary))] mb-2">
+            Описание
+          </h3>
           <p className="text-[rgb(var(--fg-primary))] whitespace-pre-wrap text-sm leading-relaxed">
             {contest.description}
           </p>
         </div>
       )}
 
-      {/* Прогресс */}
+      {/* Прогресс + слайдер */}
       <div className="glass p-5 sm:p-6 rounded-2xl">
         <div className="flex justify-between items-end mb-3">
-          <h3 className="text-sm font-medium text-[rgb(var(--fg-secondary))]">Прогресс выполнения</h3>
-          <span className="text-2xl font-bold text-accent-500">{contest.progress}%</span>
+          <h3 className="text-sm font-medium text-[rgb(var(--fg-secondary))]">
+            Прогресс выполнения
+          </h3>
+          <span className="text-2xl font-bold text-accent-500 tabular-nums">
+            {sliderValue}%
+          </span>
         </div>
-        <Progress value={contest.progress} className="h-3" />
+        <Progress value={sliderValue} className="h-3" />
+        <div className="mt-4 space-y-2">
+          <label className="sr-only" htmlFor={`progress-slider-${contest.id}`}>
+            Слайдер прогресса
+          </label>
+          <input
+            id={`progress-slider-${contest.id}`}
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={sliderValue}
+            disabled={
+              updateContest.isPending ||
+              updateStatusMutation.isPending ||
+              contest.status === 'cancelled' ||
+              hasSubtasks
+            }
+            onChange={(e) => setSliderValue(Number(e.target.value))}
+            onPointerUp={(e) =>
+              void commitProgress(Number((e.target as HTMLInputElement).value))
+            }
+            onTouchEnd={(e) =>
+              void commitProgress(Number((e.target as HTMLInputElement).value))
+            }
+            onKeyUp={(e) => {
+              if (
+                e.key === 'ArrowLeft' ||
+                e.key === 'ArrowRight' ||
+                e.key === 'Home' ||
+                e.key === 'End'
+              ) {
+                void commitProgress(Number((e.target as HTMLInputElement).value));
+              }
+            }}
+            onBlur={(e) =>
+              void commitProgress(Number((e.target as HTMLInputElement).value))
+            }
+            className={cn(
+              'w-full h-2 rounded-full appearance-none cursor-pointer accent-accent-500',
+              'bg-[rgb(var(--bg-secondary))]',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          />
+          <div className="flex justify-between text-[10px] text-[rgb(var(--fg-muted))] tabular-nums">
+            <span>0%</span>
+            <span>На проверке ~85%</span>
+            <span>Готово 100%</span>
+          </div>
+        </div>
         <p className="text-xs text-[rgb(var(--fg-muted))] mt-3">
-          Считается из чек-листа; без пунктов — от статуса или кнопки «+10%» на
-          карточке.
+          {hasSubtasks
+            ? 'Прогресс родителя считается автоматически по подзадачам (среднее). Меняйте прогресс у подзадач.'
+            : 'Слайдер меняет прогресс и статус (0 — не начат, ≥85% — на проверке, 100% — готово). Чек-лист тоже обновляет прогресс.'}
         </p>
       </div>
 

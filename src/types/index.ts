@@ -35,6 +35,8 @@ export interface Contest {
   color: string | null;
   /** null = корневая задача; иначе id родителя (подзадача) */
   parent_id: string | null;
+  /** Порядок среди соседей (подзадачи одного parent_id) */
+  position: number;
   recurrence: RecurrenceRule;
   recurrence_until: string | null;
   workspace_id: string | null;
@@ -42,6 +44,11 @@ export interface Contest {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** UI: ближайший дедлайн незакрытого этапа (обогащение списка) */
+  next_stage_due_date?: string | null;
+  next_stage_title?: string | null;
+  subtask_count?: number;
+  subtask_done_count?: number;
 }
 
 /** Алиас для ясности в UI */
@@ -60,6 +67,7 @@ export interface ContestInsert {
   tags?: string[];
   color?: string | null;
   parent_id?: string | null;
+  position?: number;
   recurrence?: RecurrenceRule;
   recurrence_until?: string | null;
   workspace_id?: string | null;
@@ -78,6 +86,7 @@ export interface ContestUpdate {
   tags?: string[];
   color?: string | null;
   parent_id?: string | null;
+  position?: number;
   recurrence?: RecurrenceRule;
   recurrence_until?: string | null;
   workspace_id?: string | null;

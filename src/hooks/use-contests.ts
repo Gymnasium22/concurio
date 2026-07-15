@@ -20,6 +20,8 @@ import {
   downloadCsv,
   csvToContestInserts,
   importContests,
+  reorderSubtasks,
+  syncProgressFromSubtasks,
 } from '@/services/contestService';
 import {
   applyRulesToInsert,
@@ -192,6 +194,9 @@ export function useCreateContest() {
         queryClient.invalidateQueries({
           queryKey: ['subtasks', data.parent_id],
         });
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.contest(data.parent_id),
+        });
       }
     },
   });
@@ -243,6 +248,9 @@ export function useUpdateContest() {
         queryClient.invalidateQueries({
           queryKey: ['subtasks', data.parent_id],
         });
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.contest(data.parent_id),
+        });
       }
     },
   });
@@ -253,14 +261,34 @@ export function useDeleteContest() {
 
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      // Мягкое удаление → корзина
+      const prev = await fetchContestById(id).catch(() => null);
       await softDeleteContest(id);
+      if (prev?.parent_id) {
+        try {
+          await syncProgressFromSubtasks(prev.parent_id);
+        } catch {
+          /* ignore */
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contests });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.stats });
       queryClient.invalidateQueries({ queryKey: ['subtasks'] });
       queryClient.invalidateQueries({ queryKey: ['trash'] });
+    },
+  });
+}
+
+export function useReorderSubtasks(parentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await reorderSubtasks(parentId, orderedIds);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subtasks', parentId] });
     },
   });
 }

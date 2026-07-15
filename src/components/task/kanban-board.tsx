@@ -4,7 +4,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useContestsBoard, useUpdateContestStatus } from '@/hooks/use-contests';
-import { STATUS_LABELS, STATUS_ORDER, STATUS_DEFAULT_PROGRESS } from '@/lib/constants';
+import {
+  STATUS_LABELS,
+  STATUS_ORDER,
+  STATUS_HINTS,
+  progressForStatusChange,
+} from '@/lib/constants';
 import type { Contest, ContestStatus } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, cn } from '@/lib/utils';
@@ -23,7 +28,7 @@ const ALL_COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
 const COLUMN_ACCENT: Record<ContestStatus, string> = {
   todo: 'border-t-slate-400',
   in_progress: 'border-t-blue-500',
-  review: 'border-t-violet-500',
+  review: 'border-t-amber-500',
   done: 'border-t-emerald-500',
   cancelled: 'border-t-red-400',
 };
@@ -56,7 +61,7 @@ export function KanbanBoard() {
     await updateStatus.mutateAsync({
       id: contest.id,
       status,
-      progress: STATUS_DEFAULT_PROGRESS[status],
+      progress: progressForStatusChange(status, contest.progress),
     });
   };
 
@@ -126,9 +131,14 @@ export function KanbanBoard() {
             )}
           >
             <div className="px-2.5 py-2.5 border-b border-[rgb(var(--border-default))]/80 flex items-center justify-between shrink-0 gap-1">
-              <h3 className="text-xs sm:text-sm font-bold truncate">
-                {STATUS_LABELS[status]}
-              </h3>
+              <div className="min-w-0">
+                <h3 className="text-xs sm:text-sm font-bold truncate">
+                  {STATUS_LABELS[status]}
+                </h3>
+                <p className="text-[10px] text-[rgb(var(--fg-muted))] truncate leading-tight mt-0.5 hidden sm:block">
+                  {STATUS_HINTS[status]}
+                </p>
+              </div>
               <span className="text-[10px] font-semibold text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-1.5 py-0.5 rounded-full shrink-0 tabular-nums min-w-[1.25rem] text-center">
                 {items.length}
               </span>

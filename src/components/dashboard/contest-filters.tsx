@@ -3,14 +3,7 @@
  */
 import { useAppStore } from '@/stores/app-store';
 import { Input } from '@/components/ui/input';
-import {
-  Search,
-  Eye,
-  EyeOff,
-  SlidersHorizontal,
-  ArrowDownUp,
-  X,
-} from 'lucide-react';
+import { Search, Eye, EyeOff, SlidersHorizontal, ArrowDownUp, X } from 'lucide-react';
 import {
   STATUS_LABELS,
   STATUS_ORDER,
@@ -63,15 +56,18 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
     }
   };
 
+  /** Режим «только готовые» (глаз) */
+  const showingDoneOnly = statusFilter === 'done';
+
   const activeFilterCount = [
-    statusFilter !== 'all',
+    statusFilter !== 'all' && !showingDoneOnly,
     taskTypeFilter !== 'all',
     priorityFilter !== 'all',
-    !hideCompleted,
+    showingDoneOnly,
   ].filter(Boolean).length;
 
   const hasActiveFilters =
-    searchQuery.trim() !== '' || activeFilterCount > 0;
+    searchQuery.trim() !== '' || activeFilterCount > 0 || !hideCompleted;
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -79,6 +75,17 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
     setTaskTypeFilter('all');
     setPriorityFilter('all');
     setHideCompleted(true);
+  };
+
+  /** Глаз: активные ↔ только готовые (не «все подряд») */
+  const toggleDoneView = () => {
+    if (showingDoneOnly) {
+      setHideCompleted(true);
+      setStatusFilter('all');
+    } else {
+      setHideCompleted(false);
+      setStatusFilter('done');
+    }
   };
 
   const filterSummary =
@@ -104,23 +111,17 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
           className={cn(
             'shrink-0',
             compact ? 'h-10 w-10' : 'h-11 w-11',
-            !hideCompleted &&
+            showingDoneOnly &&
               'border-accent-300 bg-accent-50 text-accent-700 dark:border-accent-800 dark:bg-accent-900/30'
           )}
-          onClick={() => {
-            const next = !hideCompleted;
-            setHideCompleted(next);
-            if (next && (statusFilter === 'done' || statusFilter === 'cancelled')) {
-              setStatusFilter('all');
-            }
-          }}
-          title={hideCompleted ? 'Показать готовые' : 'Скрыть готовые'}
+          onClick={toggleDoneView}
+          title={showingDoneOnly ? 'Вернуться к активным' : 'Показать только готовые'}
+          aria-pressed={showingDoneOnly}
+          aria-label={
+            showingDoneOnly ? 'Вернуться к активным' : 'Показать только готовые'
+          }
         >
-          {hideCompleted ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
+          {showingDoneOnly ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </Button>
 
         <DropdownMenu>
@@ -143,19 +144,24 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
               )}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 max-h-[70vh] overflow-y-auto">
+          <DropdownMenuContent
+            align="end"
+            side="bottom"
+            collisionPadding={{ top: 12, bottom: 88, left: 12, right: 12 }}
+            className="w-56"
+          >
             <DropdownMenuLabel>Тип</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => setTaskTypeFilter('all')}>
-              <span className={cn(taskTypeFilter === 'all' && 'font-bold text-accent-500')}>
+              <span
+                className={cn(taskTypeFilter === 'all' && 'font-bold text-accent-500')}
+              >
                 Все типы
               </span>
             </DropdownMenuItem>
             {TASK_TYPE_ORDER.map((type) => (
               <DropdownMenuItem key={type} onClick={() => setTaskTypeFilter(type)}>
                 <span
-                  className={cn(
-                    taskTypeFilter === type && 'font-bold text-accent-500'
-                  )}
+                  className={cn(taskTypeFilter === type && 'font-bold text-accent-500')}
                 >
                   {TASK_TYPE_LABELS[type]}
                 </span>
@@ -172,9 +178,7 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
             {STATUS_ORDER.map((status) => (
               <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>
                 <span
-                  className={cn(
-                    statusFilter === status && 'font-bold text-accent-500'
-                  )}
+                  className={cn(statusFilter === status && 'font-bold text-accent-500')}
                 >
                   {STATUS_LABELS[status]}
                 </span>
@@ -193,15 +197,15 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Приоритет</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => setPriorityFilter('all')}>
-              <span className={cn(priorityFilter === 'all' && 'font-bold text-accent-500')}>
+              <span
+                className={cn(priorityFilter === 'all' && 'font-bold text-accent-500')}
+              >
                 Любой
               </span>
             </DropdownMenuItem>
             {PRIORITY_ORDER.map((p) => (
               <DropdownMenuItem key={p} onClick={() => setPriorityFilter(p)}>
-                <span
-                  className={cn(priorityFilter === p && 'font-bold text-accent-500')}
-                >
+                <span className={cn(priorityFilter === p && 'font-bold text-accent-500')}>
                   {PRIORITY_LABELS[p]}
                 </span>
               </DropdownMenuItem>
@@ -281,8 +285,14 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
               onClear={() => setPriorityFilter('all')}
             />
           )}
-          {!hideCompleted && (
-            <Chip label="С готовыми" onClear={() => setHideCompleted(true)} />
+          {showingDoneOnly && (
+            <Chip
+              label="Только готовые"
+              onClear={() => {
+                setHideCompleted(true);
+                setStatusFilter('all');
+              }}
+            />
           )}
         </div>
       )}

@@ -39,12 +39,211 @@ export function normalizeContest(row: Record<string, unknown>): Contest {
     color: (row.color as string | null) ?? null,
     telegram_message_links: (row.telegram_message_links as string[]) ?? [],
     parent_id: (row.parent_id as string | null) ?? null,
+    position: typeof row.position === 'number' ? row.position : 0,
     recurrence: (row.recurrence as Contest['recurrence']) ?? 'none',
     recurrence_until: (row.recurrence_until as string | null) ?? null,
     workspace_id: (row.workspace_id as string | null) ?? null,
     deleted_at: (row.deleted_at as string | null) ?? null,
     completed_at: (row.completed_at as string | null) ?? null,
   };
+}
+
+/** Ближайший дедлайн среди незакрытых подзадач + счётчики */
+export function computeSubtaskMeta(subtasks: Contest[]): {
+  next_stage_due_date: string | null;
+  next_stage_title: string | null;
+  subtask_count: number;
+  subtask_done_count: number;
+} {
+  const active = subtasks.filter((s) => s.status !== 'cancelled' && !s.deleted_at);
+  const open = active.filter((s) => s.status !== 'done');
+  const withDue = open
+    .filter((s) => s.due_date)
+    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime());
+  const nearest = withDue[0];
+  return {
+    next_stage_due_date: nearest?.due_date ?? null,
+    next_stage_title: nearest?.title ?? null,
+    subtask_count: active.length,
+    subtask_done_count: active.filter((s) => s.status === 'done').length,
+  };
+}
+
+/**
+ * Обогатить корневые задачи ближайшим дедлайном этапа и счётчиками.
+ */
+export async function enrichWithSubtaskMeta(contests: Contest[]): Promise<Contest[]> {
+  if (contests.length === 0) return contests;
+  const ids = contests.map((c) => c.id);
+
+  let data: Record<string, unknown>[] | null = null;
+  const res = await supabase
+    .from('contests')
+    .select('id,parent_id,title,due_date,status,progress,position,created_at,deleted_at')
+    .in('parent_id', ids)
+    .is('deleted_at', null);
+
+  if (res.error) {
+    // soft-delete колонки может не быть
+    if (/deleted_at|column/i.test(res.error.message)) {
+      const fallback = await supabase
+        .from('contests')
+        .select('id,parent_id,title,due_date,status,progress,created_at')
+        .in('parent_id', ids);
+      if (fallback.error) return contests;
+      data = (fallback.data ?? []) as Record<string, unknown>[];
+    } else {
+      return contests;
+    }
+  } else {
+    data = (res.data ?? []) as Record<string, unknown>[];
+  }
+
+  const byParent = new Map<string, Contest[]>();
+  for (const row of data) {
+    const c = normalizeContest(row);
+    if (!c.parent_id) continue;
+    const list = byParent.get(c.parent_id) ?? [];
+    list.push(c);
+    byParent.set(c.parent_id, list);
+  }
+
+  return contests.map((parent) => {
+    const subs = byParent.get(parent.id) ?? [];
+    if (subs.length === 0) {
+      return {
+        ...parent,
+        next_stage_due_date: null,
+        next_stage_title: null,
+        subtask_count: 0,
+        subtask_done_count: 0,
+      };
+    }
+    return { ...parent, ...computeSubtaskMeta(subs) };
+  });
+}
+
+/**
+ * Прогресс родителя = среднее progress незакрытых-как-отменённых подзадач.
+ * Статус: все done → done; иначе по среднему %; cancelled родителя не трогаем.
+ */
+export async function syncProgressFromSubtasks(
+  parentId: string
+): Promise<{ progress: number; status?: ContestStatus } | null> {
+  const { data: parentRow, error: parentErr } = await supabase
+    .from('contests')
+    .select('status')
+    .eq('id', parentId)
+    .single();
+  if (parentErr) throw new Error(parentErr.message);
+
+  const parentStatus = (parentRow?.status as ContestStatus) || 'todo';
+  if (parentStatus === 'cancelled') return null;
+
+  let q = supabase
+    .from('contests')
+    .select('status,progress,deleted_at')
+    .eq('parent_id', parentId);
+
+  const { data: rows, error } = await q;
+  if (error) {
+    if (/deleted_at|column/i.test(error.message)) {
+      const fb = await supabase
+        .from('contests')
+        .select('status,progress')
+        .eq('parent_id', parentId);
+      if (fb.error) throw new Error(fb.error.message);
+      return applySubtaskProgressSync(parentId, parentStatus, fb.data ?? []);
+    }
+    throw new Error(error.message);
+  }
+
+  return applySubtaskProgressSync(parentId, parentStatus, rows ?? []);
+}
+
+async function applySubtaskProgressSync(
+  parentId: string,
+  parentStatus: ContestStatus,
+  rows: { status?: string; progress?: number; deleted_at?: string | null }[]
+): Promise<{ progress: number; status?: ContestStatus } | null> {
+  const active = rows.filter((r) => !r.deleted_at && r.status !== 'cancelled');
+  if (active.length === 0) return null;
+
+  const progress = Math.round(
+    active.reduce((sum, r) => sum + (Number(r.progress) || 0), 0) / active.length
+  );
+
+  const allDone = active.every((r) => r.status === 'done');
+  const anyInProgress = active.some((r) => r.status === 'in_progress');
+  const anyReview = active.some((r) => r.status === 'review');
+  const anyWork =
+    anyInProgress ||
+    anyReview ||
+    active.some((r) => (Number(r.progress) || 0) > 0 || r.status === 'done');
+
+  let status: ContestStatus;
+  if (allDone) {
+    status = 'done';
+  } else if (anyReview && !anyInProgress && !active.some((r) => r.status === 'todo')) {
+    status = 'review';
+  } else if (anyWork) {
+    status = progress >= 85 ? 'review' : 'in_progress';
+  } else {
+    status = 'todo';
+  }
+
+  // Не откатываем «Готово» родителя только из‑за дробного progress, если все done
+  if (allDone) status = 'done';
+
+  const updates: ContestUpdate = {
+    progress: allDone ? 100 : Math.min(progress, 99),
+    status,
+  };
+  if (status === 'done' && parentStatus !== 'done') {
+    updates.completed_at = new Date().toISOString();
+  } else if (status !== 'done' && parentStatus === 'done') {
+    updates.completed_at = null;
+  }
+
+  const { error: updError } = await supabase
+    .from('contests')
+    .update(updates)
+    .eq('id', parentId);
+  if (updError) throw new Error(updError.message);
+
+  return { progress: updates.progress ?? progress, status };
+}
+
+/** Следующий position для подзадачи */
+export async function nextSubtaskPosition(parentId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('contests')
+    .select('position')
+    .eq('parent_id', parentId)
+    .order('position', { ascending: false })
+    .limit(1);
+  if (error) {
+    if (/position|column/i.test(error.message)) return 0;
+    throw new Error(error.message);
+  }
+  return (data?.[0]?.position ?? -1) + 1;
+}
+
+/** Переупорядочить подзадачи: orderedIds = id в новом порядке */
+export async function reorderSubtasks(
+  parentId: string,
+  orderedIds: string[]
+): Promise<void> {
+  await Promise.all(
+    orderedIds.map(async (id, position) => {
+      const { error } = await supabase
+        .from('contests')
+        .update({ position })
+        .eq('id', id)
+        .eq('parent_id', parentId);
+      if (error) throw new Error(error.message);
+    })
+  );
 }
 
 export async function fetchContests(filters: ContestListFilters): Promise<Contest[]> {
@@ -95,7 +294,11 @@ export async function fetchContests(filters: ContestListFilters): Promise<Contes
   if (error) {
     // Fallback без deleted_at (миграция ещё не применена)
     if (/deleted_at|column/i.test(error.message)) {
-      return fetchContestsLegacy(filters);
+      const legacy = await fetchContestsLegacy(filters);
+      if (filters.rootOnly !== false && !filters.parentId) {
+        return enrichWithSubtaskMeta(legacy);
+      }
+      return legacy;
     }
     throw new Error(error.message);
   }
@@ -115,6 +318,9 @@ export async function fetchContests(filters: ContestListFilters): Promise<Contes
     });
   }
 
+  if (filters.rootOnly !== false && !filters.parentId && !filters.trash) {
+    return enrichWithSubtaskMeta(rows);
+  }
   return rows;
 }
 
@@ -175,29 +381,91 @@ export async function fetchContestById(id: string): Promise<Contest> {
 }
 
 export async function fetchSubtasks(parentId: string): Promise<Contest[]> {
-  const { data, error } = await supabase
+  const tryOrdered = await supabase
     .from('contests')
     .select('*')
     .eq('parent_id', parentId)
+    .order('position', { ascending: true })
     .order('created_at', { ascending: true });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => normalizeContest(r as Record<string, unknown>));
+
+  if (tryOrdered.error) {
+    if (/position|column/i.test(tryOrdered.error.message)) {
+      const { data, error } = await supabase
+        .from('contests')
+        .select('*')
+        .eq('parent_id', parentId)
+        .order('created_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => normalizeContest(r as Record<string, unknown>));
+    }
+    throw new Error(tryOrdered.error.message);
+  }
+
+  let rows = (tryOrdered.data ?? []).map((r) =>
+    normalizeContest(r as Record<string, unknown>)
+  );
+  // soft-delete filter client-side if column present
+  rows = rows.filter((r) => !r.deleted_at);
+  return rows;
 }
 
 export async function createContest(
   input: ContestInsert,
   userId: string
 ): Promise<Contest> {
+  let payload: ContestInsert & { user_id: string } = {
+    ...input,
+    user_id: userId,
+  };
+
+  if (input.parent_id && input.position == null) {
+    try {
+      payload = {
+        ...payload,
+        position: await nextSubtaskPosition(input.parent_id),
+      };
+    } catch {
+      /* position column may be missing */
+    }
+  }
+
   const { data, error } = await supabase
     .from('contests')
-    .insert({
-      ...input,
-      user_id: userId,
-    })
+    .insert(payload)
     .select()
     .single();
-  if (error) throw new Error(error.message);
-  return normalizeContest(data as Record<string, unknown>);
+
+  if (error) {
+    // retry without position if column missing
+    if (/position|column/i.test(error.message) && 'position' in payload) {
+      const { position: _p, ...rest } = payload as ContestInsert & {
+        user_id: string;
+        position?: number;
+      };
+      const retry = await supabase.from('contests').insert(rest).select().single();
+      if (retry.error) throw new Error(retry.error.message);
+      const created = normalizeContest(retry.data as Record<string, unknown>);
+      if (created.parent_id) {
+        try {
+          await syncProgressFromSubtasks(created.parent_id);
+        } catch {
+          /* ignore */
+        }
+      }
+      return created;
+    }
+    throw new Error(error.message);
+  }
+
+  const created = normalizeContest(data as Record<string, unknown>);
+  if (created.parent_id) {
+    try {
+      await syncProgressFromSubtasks(created.parent_id);
+    } catch {
+      /* ignore */
+    }
+  }
+  return created;
 }
 
 export async function updateContest(
@@ -211,7 +479,24 @@ export async function updateContest(
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return normalizeContest(data as Record<string, unknown>);
+  const updated = normalizeContest(data as Record<string, unknown>);
+
+  // Автопрогресс родителя при изменении подзадачи
+  if (
+    updated.parent_id &&
+    (updates.status != null ||
+      updates.progress != null ||
+      updates.due_date !== undefined ||
+      updates.deleted_at !== undefined)
+  ) {
+    try {
+      await syncProgressFromSubtasks(updated.parent_id);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return updated;
 }
 
 export async function deleteContest(id: string): Promise<void> {

@@ -13,7 +13,10 @@ export const STATUS_LABELS: Record<ContestStatus, string> = {
 };
 
 /** Маппинг статусов на цвета (Tailwind классы) */
-export const STATUS_COLORS: Record<ContestStatus, { text: string; bg: string; border: string }> = {
+export const STATUS_COLORS: Record<
+  ContestStatus,
+  { text: string; bg: string; border: string }
+> = {
   todo: {
     text: 'text-slate-500 dark:text-slate-400',
     bg: 'bg-slate-100 dark:bg-slate-800/50',
@@ -49,12 +52,7 @@ export const STATUS_ICONS: Record<ContestStatus, string> = {
   cancelled: 'XCircle',
 };
 
-export const STATUS_ORDER: ContestStatus[] = [
-  'todo',
-  'in_progress',
-  'review',
-  'done',
-];
+export const STATUS_ORDER: ContestStatus[] = ['todo', 'in_progress', 'review', 'done'];
 
 /** Типы задач */
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
@@ -64,7 +62,10 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   reminder: 'Напоминание',
 };
 
-export const TASK_TYPE_COLORS: Record<TaskType, { text: string; bg: string; border: string }> = {
+export const TASK_TYPE_COLORS: Record<
+  TaskType,
+  { text: string; bg: string; border: string }
+> = {
   contest: {
     text: 'text-violet-600 dark:text-violet-400',
     bg: 'bg-violet-50 dark:bg-violet-900/30',
@@ -97,7 +98,10 @@ export const PRIORITY_LABELS: Record<TaskPriority, string> = {
   urgent: 'Срочно',
 };
 
-export const PRIORITY_COLORS: Record<TaskPriority, { text: string; bg: string; dot: string }> = {
+export const PRIORITY_COLORS: Record<
+  TaskPriority,
+  { text: string; bg: string; dot: string }
+> = {
   low: {
     text: 'text-slate-500 dark:text-slate-400',
     bg: 'bg-slate-100 dark:bg-slate-800/50',
@@ -138,15 +142,13 @@ export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
 };
 
 /** Повтор задачи */
-export const RECURRENCE_LABELS: Record<
-  'none' | 'daily' | 'weekly' | 'monthly',
-  string
-> = {
-  none: 'Без повтора',
-  daily: 'Каждый день',
-  weekly: 'Каждую неделю',
-  monthly: 'Каждый месяц',
-};
+export const RECURRENCE_LABELS: Record<'none' | 'daily' | 'weekly' | 'monthly', string> =
+  {
+    none: 'Без повтора',
+    daily: 'Каждый день',
+    weekly: 'Каждую неделю',
+    monthly: 'Каждый месяц',
+  };
 
 /** Допустимые типы файлов */
 export const ACCEPTED_FILE_TYPES = {
@@ -194,10 +196,57 @@ export const QUERY_KEYS = {
   activity: (contestId: string) => ['activity', contestId] as const,
 };
 
+/**
+ * Рекомендуемый прогресс при смене статуса (подсказка, не «авто-готово»).
+ * «На проверке» ≠ 100% — только «Готово» означает завершение.
+ */
 export const STATUS_DEFAULT_PROGRESS: Record<ContestStatus, number> = {
   todo: 0,
-  in_progress: 30,
-  review: 70,
+  in_progress: 35,
+  review: 85,
   done: 100,
   cancelled: 0,
 };
+
+/**
+ * Прогресс при смене статуса: не затираем ручной/чек-лист выше минимума,
+ * при откате назад — не оставляем 100%, если статус не «Готово».
+ */
+export function progressForStatusChange(
+  next: ContestStatus,
+  currentProgress: number
+): number {
+  const floor = STATUS_DEFAULT_PROGRESS[next];
+  if (next === 'done') return 100;
+  if (next === 'cancelled') return currentProgress;
+  if (next === 'todo') return Math.min(currentProgress, floor);
+  // in_progress / review: поднимаем до пола, но не до 100
+  const raised = Math.max(currentProgress, floor);
+  return Math.min(raised, next === 'review' ? 95 : 90);
+}
+
+/** Короткие пояснения к статусам (степпер / подсказки) */
+export const STATUS_HINTS: Record<ContestStatus, string> = {
+  todo: 'Ещё не начали',
+  in_progress: 'В процессе работы',
+  review: 'Сделано, ждёт проверки — ещё не финал',
+  done: 'Полностью завершено',
+  cancelled: 'Отменено',
+};
+
+/**
+ * Статус по проценту прогресса (слайдер / ручной ввод).
+ * 100 → Готово; ≥85 → На проверке; >0 → В работе; 0 → Не начат.
+ * cancelled не трогаем (вызывать только для активных).
+ */
+export function statusFromProgress(
+  progress: number,
+  current: ContestStatus
+): ContestStatus {
+  if (current === 'cancelled') return 'cancelled';
+  const p = Math.max(0, Math.min(100, Math.round(progress)));
+  if (p >= 100) return 'done';
+  if (p >= 85) return 'review';
+  if (p > 0) return 'in_progress';
+  return 'todo';
+}

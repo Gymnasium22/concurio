@@ -166,7 +166,13 @@ export function Dashboard() {
                     : contests.length < 5
                       ? 'задачи'
                       : 'задач'
-                }${hideCompleted ? ' · активные' : ''}`
+                }${
+                  statusFilter === 'done'
+                    ? ' · только готовые'
+                    : hideCompleted
+                      ? ' · активные'
+                      : ''
+                }`
               : 'Список и быстрые действия'}
             {activeWsName ? ` · ${activeWsName}` : ''}
           </p>
@@ -350,12 +356,18 @@ export function Dashboard() {
                 <ListTodo className="h-7 w-7 text-accent-500" />
               </div>
               <h3 className="text-lg font-bold mb-1">
-                {hideCompleted ? 'Нет активных задач' : 'Пока пусто'}
+                {statusFilter === 'done'
+                  ? 'Нет готовых задач'
+                  : hideCompleted
+                    ? 'Нет активных задач'
+                    : 'Пока пусто'}
               </h3>
               <p className="text-sm text-[rgb(var(--fg-secondary))] mb-5 max-w-sm">
-                {hideCompleted
-                  ? 'Всё сделано — или покажите готовые (иконка глаза).'
-                  : 'Создайте первую задачу.'}
+                {statusFilter === 'done'
+                  ? 'Закройте задачу статусом «Готово» — она появится здесь.'
+                  : hideCompleted
+                    ? 'Всё сделано — или откройте только готовые (иконка глаза).'
+                    : 'Создайте первую задачу.'}
               </p>
               <Link to="/create">
                 <Button className="gap-2 min-h-[44px]">

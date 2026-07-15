@@ -28,11 +28,21 @@ export async function logActivity(
 
 /**
  * Прогресс задачи = доля выполненных пунктов чек-листа.
+ * Если есть подзадачи — прогресс считается по ним (не затираем).
  * Если пунктов нет — progress не трогаем (ручной / статусный).
  */
 export async function syncProgressFromChecklist(
   contestId: string
 ): Promise<{ progress: number; status?: ContestStatus } | null> {
+  const { count: subCount } = await supabase
+    .from('contests')
+    .select('id', { count: 'exact', head: true })
+    .eq('parent_id', contestId);
+
+  if (subCount && subCount > 0) {
+    return null;
+  }
+
   const { data: items, error } = await supabase
     .from('checklist_items')
     .select('is_done')

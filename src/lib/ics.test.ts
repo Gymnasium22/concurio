@@ -16,6 +16,7 @@ const base: Contest = {
   tags: [],
   color: null,
   parent_id: null,
+  position: 0,
   recurrence: 'none',
   recurrence_until: null,
   workspace_id: null,

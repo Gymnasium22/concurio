@@ -12,13 +12,16 @@ const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 const DropdownMenuContent = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => (
+>(({ className, sideOffset = 4, collisionPadding = 12, ...props }, ref) => (
   <DropdownMenuPrimitive.Portal>
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
+      collisionPadding={collisionPadding}
       className={cn(
-        'z-50 min-w-[8rem] overflow-hidden rounded-xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))] p-1 shadow-xl',
+        'z-50 min-w-[8rem] overflow-y-auto overscroll-contain rounded-xl border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))] p-1 shadow-xl',
+        /* не уезжать под bottom-nav / safe-area */
+        'max-h-[min(70vh,calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px)))]',
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         className
       )}
