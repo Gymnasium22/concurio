@@ -46,14 +46,17 @@ export function toast(input: Omit<Toast, 'id'>) {
 
 /** Удалить toast */
 export function dismissToast(id: string) {
-  toasts = toasts.filter(t => t.id !== id);
+  toasts = toasts.filter((t) => t.id !== id);
   notifyListeners();
 }
 
 /**
  * Хук для подписки на toasts
  */
-export function useToast(): ToastState & { toast: typeof toast; dismiss: typeof dismissToast } {
+export function useToast(): ToastState & {
+  toast: typeof toast;
+  dismiss: typeof dismissToast;
+} {
   const [state, setState] = useState<ToastState>({ toasts: [] });
 
   // Подписка на обновления
@@ -63,13 +66,17 @@ export function useToast(): ToastState & { toast: typeof toast; dismiss: typeof 
     };
     toastListeners.push(listener);
     return () => {
-      toastListeners = toastListeners.filter(l => l !== listener);
+      toastListeners = toastListeners.filter((l) => l !== listener);
     };
+  }, []);
+
+  const dismiss = useCallback((id: string) => {
+    dismissToast(id);
   }, []);
 
   return {
     ...state,
     toast,
-    dismiss: useCallback(dismissToast, []),
+    dismiss,
   };
 }

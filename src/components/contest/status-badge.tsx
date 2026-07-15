@@ -3,6 +3,7 @@
  */
 import { STATUS_LABELS, STATUS_COLORS, STATUS_ICONS } from '@/lib/constants';
 import * as LucideIcons from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { ContestStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -17,9 +18,8 @@ export function StatusBadge({ status, className, showIcon = true }: StatusBadgeP
   const colors = STATUS_COLORS[status];
   const iconName = STATUS_ICONS[status];
 
-  // Динамически получаем иконку из lucide-react
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Icon = (LucideIcons as any)[iconName] || LucideIcons.Circle;
+  const icons = LucideIcons as unknown as Record<string, LucideIcon>;
+  const Icon = icons[iconName] || LucideIcons.Circle;
 
   return (
     <div

@@ -1,7 +1,7 @@
 /**
  * ContestForm — форма создания/редактирования задачи или конкурса
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCreateContest, useUpdateContest } from '@/hooks/use-contests';
 import { useTelegramMainButton, useTelegramBackButton } from '@/hooks/use-telegram';
@@ -93,13 +93,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
       ? 'Создать конкурс'
       : 'Создать задачу';
 
-  useTelegramMainButton(submitLabel, () => handleSubmit(), {
-    visible: true,
-    disabled: !isFormValid || isSubmitting,
-    loading: isSubmitting,
-  });
-
-  const applyTemplate = (tpl: TaskTemplate) => {
+  const applyTemplate = useCallback((tpl: TaskTemplate) => {
     setTemplateId(tpl.id);
     setTaskType(tpl.task_type);
     setPriority(tpl.priority);
@@ -113,7 +107,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
     if (tpl.descriptionHint) {
       setDescription((prev) => (prev.trim() ? prev : tpl.descriptionHint!));
     }
-  };
+  }, []);
 
   /** Ссылка вида /create?template=contest-3 */
   useEffect(() => {
@@ -128,8 +122,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
     const next = new URLSearchParams(searchParams);
     next.delete('template');
     setSearchParams(next, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once from URL
-  }, [isEdit, searchParams, setSearchParams]);
+  }, [isEdit, searchParams, setSearchParams, applyTemplate]);
 
   const parseTags = (raw: string) =>
     raw
@@ -138,89 +131,117 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
       .filter(Boolean)
       .slice(0, 12);
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!isFormValid) return;
+  const handleSubmit = useCallback(
+    async (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
+      if (!isFormValid) return;
 
-    const validLinks = showTelegramLinks
-      ? links.filter((l) => l.trim().length > 0 && isValidTelegramLink(l))
-      : [];
-    const tags = parseTags(tagsInput);
+      const validLinks = showTelegramLinks
+        ? links.filter((l) => l.trim().length > 0 && isValidTelegramLink(l))
+        : [];
+      const tags = parseTags(tagsInput);
 
-    try {
-      if (isEdit && initialData) {
-        const updateData: ContestUpdate & { id: string } = {
-          id: initialData.id,
-          title: title.trim(),
-          description: description.trim() || null,
-          due_date: dueDate ? dueDate.toISOString() : null,
-          status,
-          task_type: taskType,
-          priority,
-          tags,
-          telegram_message_links: validLinks,
-          recurrence,
-        };
-        await updateMutation.mutateAsync(updateData);
-        toast({ title: 'Изменения сохранены', variant: 'success' });
-        navigate(`/contest/${initialData.id}`, { replace: true });
-      } else {
-        const insertData: ContestInsert = {
-          title: title.trim(),
-          description: description.trim() || null,
-          due_date: dueDate ? dueDate.toISOString() : null,
-          status,
-          task_type: taskType,
-          priority,
-          tags,
-          telegram_message_links: validLinks,
-          progress: 0,
-          recurrence,
-        };
-        const created = await createMutation.mutateAsync(insertData);
+      try {
+        if (isEdit && initialData) {
+          const updateData: ContestUpdate & { id: string } = {
+            id: initialData.id,
+            title: title.trim(),
+            description: description.trim() || null,
+            due_date: dueDate ? dueDate.toISOString() : null,
+            status,
+            task_type: taskType,
+            priority,
+            tags,
+            telegram_message_links: validLinks,
+            recurrence,
+          };
+          await updateMutation.mutateAsync(updateData);
+          toast({ title: 'Изменения сохранены', variant: 'success' });
+          navigate(`/contest/${initialData.id}`, { replace: true });
+        } else {
+          const insertData: ContestInsert = {
+            title: title.trim(),
+            description: description.trim() || null,
+            due_date: dueDate ? dueDate.toISOString() : null,
+            status,
+            task_type: taskType,
+            priority,
+            tags,
+            telegram_message_links: validLinks,
+            progress: 0,
+            recurrence,
+          };
+          const created = await createMutation.mutateAsync(insertData);
 
-        // Подзадачи-этапы из шаблона
-        if (stagesPreview.length > 0) {
-          setCreatingStages(true);
-          try {
-            for (let i = 0; i < stagesPreview.length; i++) {
-              const stage = stagesPreview[i]!;
-              await createMutation.mutateAsync({
-                title: stage.title,
-                parent_id: created.id,
-                task_type: 'task',
-                status: 'todo',
-                progress: 0,
-                priority,
-                due_date: daysFromNow(stage.daysFromStart).toISOString(),
-                position: i,
-              });
+          // Подзадачи-этапы из шаблона
+          if (stagesPreview.length > 0) {
+            setCreatingStages(true);
+            try {
+              for (let i = 0; i < stagesPreview.length; i++) {
+                const stage = stagesPreview[i]!;
+                await createMutation.mutateAsync({
+                  title: stage.title,
+                  parent_id: created.id,
+                  task_type: 'task',
+                  status: 'todo',
+                  progress: 0,
+                  priority,
+                  due_date: daysFromNow(stage.daysFromStart).toISOString(),
+                  position: i,
+                });
+              }
+            } finally {
+              setCreatingStages(false);
             }
-          } finally {
-            setCreatingStages(false);
           }
-        }
 
+          toast({
+            title:
+              stagesPreview.length > 0
+                ? `Создано + ${stagesPreview.length} этап(а/ов)`
+                : taskType === 'contest'
+                  ? 'Конкурс создан'
+                  : 'Задача создана',
+            variant: 'success',
+          });
+          navigate(`/contest/${created.id}`, { replace: true });
+        }
+      } catch (err) {
+        setCreatingStages(false);
         toast({
-          title:
-            stagesPreview.length > 0
-              ? `Создано + ${stagesPreview.length} этап(а/ов)`
-              : taskType === 'contest'
-                ? 'Конкурс создан'
-                : 'Задача создана',
-          variant: 'success',
+          title: 'Ошибка сохранения',
+          description: err instanceof Error ? err.message : undefined,
+          variant: 'error',
         });
-        navigate(`/contest/${created.id}`, { replace: true });
       }
-    } catch (err) {
-      setCreatingStages(false);
-      toast({
-        title: 'Ошибка сохранения',
-        description: err instanceof Error ? err.message : undefined,
-        variant: 'error',
-      });
-    }
-  };
+    },
+    [
+      isFormValid,
+      showTelegramLinks,
+      links,
+      tagsInput,
+      isEdit,
+      initialData,
+      title,
+      description,
+      dueDate,
+      status,
+      taskType,
+      priority,
+      recurrence,
+      stagesPreview,
+      updateMutation,
+      createMutation,
+      toast,
+      navigate,
+    ]
+  );
+
+  useTelegramMainButton(submitLabel, () => void handleSubmit(), {
+    visible: true,
+    disabled: !isFormValid || isSubmitting,
+    loading: isSubmitting,
+  });
 
   const addLink = () => setLinks([...links, '']);
   const removeLink = (index: number) => setLinks(links.filter((_, i) => i !== index));

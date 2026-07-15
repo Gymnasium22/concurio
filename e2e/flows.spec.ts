@@ -12,7 +12,9 @@ test.describe('Authenticated product flows', () => {
     await page.getByPlaceholder('Email').fill(email!);
     await page.getByPlaceholder('Пароль').fill(password!);
     await page.getByRole('button', { name: /^Войти$/ }).click();
-    await expect(page.getByRole('heading', { name: /задачи/i }).first()).toBeVisible({
+    await expect(
+      page.getByRole('heading', { name: /главная|задачи/i }).first()
+    ).toBeVisible({
       timeout: 45_000,
     });
   });

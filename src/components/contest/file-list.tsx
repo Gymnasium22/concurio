@@ -47,8 +47,7 @@ function isPdfAttachment(attachment: Attachment): boolean {
 
 function isPowerPointAttachment(attachment: Attachment): boolean {
   return (
-    POWERPOINT_MIME.has(attachment.file_type) ||
-    /\.pptx?$/i.test(attachment.file_name)
+    POWERPOINT_MIME.has(attachment.file_type) || /\.pptx?$/i.test(attachment.file_name)
   );
 }
 
@@ -93,7 +92,7 @@ function AttachmentThumbnail({ attachment }: { attachment: Attachment }) {
     return () => {
       isMounted = false;
     };
-  }, [attachment.file_name, attachment.file_path, attachment.file_type]);
+  }, [attachment]);
 
   if (!thumbnailUrl || thumbnailError) {
     return (

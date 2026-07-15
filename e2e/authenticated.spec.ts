@@ -20,7 +20,7 @@ test.describe('Authenticated smoke', () => {
 
     // После входа — дашборд
     await expect(
-      page.getByRole('heading', { name: /задачи|мои задачи/i }).first()
+      page.getByRole('heading', { name: /главная|задачи|мои задачи/i }).first()
     ).toBeVisible({ timeout: 30_000 });
 
     // Канбан

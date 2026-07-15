@@ -76,13 +76,13 @@ export async function enrichWithSubtaskMeta(contests: Contest[]): Promise<Contes
   if (contests.length === 0) return contests;
   const ids = contests.map((c) => c.id);
 
-  let data: Record<string, unknown>[] | null = null;
   const res = await supabase
     .from('contests')
     .select('id,parent_id,title,due_date,status,progress,position,created_at,deleted_at')
     .in('parent_id', ids)
     .is('deleted_at', null);
 
+  let data: Record<string, unknown>[];
   if (res.error) {
     // soft-delete колонки может не быть
     if (/deleted_at|column/i.test(res.error.message)) {
@@ -140,7 +140,7 @@ export async function syncProgressFromSubtasks(
   const parentStatus = (parentRow?.status as ContestStatus) || 'todo';
   if (parentStatus === 'cancelled') return null;
 
-  let q = supabase
+  const q = supabase
     .from('contests')
     .select('status,progress,deleted_at')
     .eq('parent_id', parentId);

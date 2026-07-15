@@ -310,6 +310,8 @@ export function useUpdateContestStatus() {
         id,
         status,
         progress,
+        // Аналитика и «готово» зависят от completed_at
+        completed_at: status === 'done' ? new Date().toISOString() : null,
       });
     },
   });
