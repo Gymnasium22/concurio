@@ -1,6 +1,7 @@
 /**
- * ContestFilters — компактная полоса: поиск + меню фильтров
+ * ContestFilters — поиск + bottom-sheet фильтры (не уезжают за экран)
  */
+import { useState, type ReactNode } from 'react';
 import { useAppStore } from '@/stores/app-store';
 import { Input } from '@/components/ui/input';
 import { Search, Eye, EyeOff, SlidersHorizontal, ArrowDownUp, X } from 'lucide-react';
@@ -17,12 +18,12 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { ContestStatus, TaskPriority, TaskType } from '@/types';
 
 interface ContestFiltersProps {
   /** Компактный режим (канбан) — без чипов */
@@ -46,6 +47,8 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
     sortOrder,
     setSortOrder,
   } = useAppStore();
+
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const handleSortToggle = (newSortBy: typeof sortBy) => {
     if (sortBy === newSortBy) {
@@ -124,94 +127,133 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
           {showingDoneOnly ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                'shrink-0 gap-1.5 px-2.5 sm:px-3',
-                compact ? 'h-10' : 'h-11',
-                activeFilterCount > 0 &&
-                  'border-accent-300 bg-accent-50 dark:bg-accent-900/20'
-              )}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="hidden xs:inline sm:inline text-sm">{filterSummary}</span>
-              {activeFilterCount > 0 && (
-                <span className="sm:hidden flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 text-[10px] font-bold text-white px-1">
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            side="bottom"
-            collisionPadding={{ top: 12, bottom: 88, left: 12, right: 12 }}
-            className="w-56"
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            'shrink-0 gap-1.5 px-2.5 sm:px-3',
+            compact ? 'h-10' : 'h-11',
+            activeFilterCount > 0 &&
+              'border-accent-300 bg-accent-50 dark:bg-accent-900/20'
+          )}
+          onClick={() => setFiltersOpen(true)}
+          aria-haspopup="dialog"
+          aria-expanded={filtersOpen}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          <span className="hidden xs:inline sm:inline text-sm">{filterSummary}</span>
+          {activeFilterCount > 0 && (
+            <span className="sm:hidden flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 text-[10px] font-bold text-white px-1">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+
+        <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <DialogContent
+            className={cn(
+              /* компактный sheet: не выше ~72dvh, скролл внутри */
+              'max-h-[min(72dvh,var(--tg-viewport-stable-height,72dvh))]',
+              'sm:max-w-md sm:max-h-[min(80vh,640px)]',
+              'flex flex-col gap-0 p-0 overflow-hidden'
+            )}
           >
-            <DropdownMenuLabel>Тип</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setTaskTypeFilter('all')}>
-              <span
-                className={cn(taskTypeFilter === 'all' && 'font-bold text-accent-500')}
-              >
-                Все типы
-              </span>
-            </DropdownMenuItem>
-            {TASK_TYPE_ORDER.map((type) => (
-              <DropdownMenuItem key={type} onClick={() => setTaskTypeFilter(type)}>
-                <span
-                  className={cn(taskTypeFilter === type && 'font-bold text-accent-500')}
-                >
-                  {TASK_TYPE_LABELS[type]}
-                </span>
-              </DropdownMenuItem>
-            ))}
+            <DialogHeader className="shrink-0 px-4 pt-4 pb-2 pr-12 sm:px-6 sm:pt-5">
+              <DialogTitle>Фильтры</DialogTitle>
+            </DialogHeader>
 
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Статус</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setStatusFilter('all')}>
-              <span className={cn(statusFilter === 'all' && 'font-bold text-accent-500')}>
-                Все статусы
-              </span>
-            </DropdownMenuItem>
-            {STATUS_ORDER.map((status) => (
-              <DropdownMenuItem key={status} onClick={() => setStatusFilter(status)}>
-                <span
-                  className={cn(statusFilter === status && 'font-bold text-accent-500')}
-                >
-                  {STATUS_LABELS[status]}
-                </span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuItem onClick={() => setStatusFilter('cancelled')}>
-              <span
-                className={cn(
-                  statusFilter === 'cancelled' && 'font-bold text-accent-500'
-                )}
-              >
-                {STATUS_LABELS.cancelled}
-              </span>
-            </DropdownMenuItem>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-2 sm:px-6 space-y-5">
+              <FilterSection title="Тип">
+                <ChipRow>
+                  <FilterChip
+                    active={taskTypeFilter === 'all'}
+                    onClick={() => setTaskTypeFilter('all')}
+                    label="Все"
+                  />
+                  {TASK_TYPE_ORDER.map((type) => (
+                    <FilterChip
+                      key={type}
+                      active={taskTypeFilter === type}
+                      onClick={() => setTaskTypeFilter(type)}
+                      label={TASK_TYPE_LABELS[type]}
+                    />
+                  ))}
+                </ChipRow>
+              </FilterSection>
 
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Приоритет</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setPriorityFilter('all')}>
-              <span
-                className={cn(priorityFilter === 'all' && 'font-bold text-accent-500')}
+              <FilterSection title="Статус">
+                <ChipRow>
+                  <FilterChip
+                    active={statusFilter === 'all' && !showingDoneOnly}
+                    onClick={() => {
+                      setStatusFilter('all');
+                      setHideCompleted(true);
+                    }}
+                    label="Все активные"
+                  />
+                  {STATUS_ORDER.map((status) => (
+                    <FilterChip
+                      key={status}
+                      active={statusFilter === status}
+                      onClick={() => {
+                        setStatusFilter(status as ContestStatus);
+                        if (status === 'done') setHideCompleted(false);
+                        else if (status !== 'cancelled') setHideCompleted(true);
+                      }}
+                      label={STATUS_LABELS[status]}
+                    />
+                  ))}
+                  <FilterChip
+                    active={statusFilter === 'cancelled'}
+                    onClick={() => {
+                      setStatusFilter('cancelled');
+                      setHideCompleted(false);
+                    }}
+                    label={STATUS_LABELS.cancelled}
+                  />
+                </ChipRow>
+              </FilterSection>
+
+              <FilterSection title="Приоритет">
+                <ChipRow>
+                  <FilterChip
+                    active={priorityFilter === 'all'}
+                    onClick={() => setPriorityFilter('all')}
+                    label="Любой"
+                  />
+                  {PRIORITY_ORDER.map((p) => (
+                    <FilterChip
+                      key={p}
+                      active={priorityFilter === p}
+                      onClick={() => setPriorityFilter(p as TaskPriority)}
+                      label={PRIORITY_LABELS[p]}
+                    />
+                  ))}
+                </ChipRow>
+              </FilterSection>
+            </div>
+
+            <div className="shrink-0 flex gap-2 border-t border-[rgb(var(--border-default))] px-4 py-3 sm:px-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 min-h-[44px]"
+                onClick={() => {
+                  clearFilters();
+                }}
               >
-                Любой
-              </span>
-            </DropdownMenuItem>
-            {PRIORITY_ORDER.map((p) => (
-              <DropdownMenuItem key={p} onClick={() => setPriorityFilter(p)}>
-                <span className={cn(priorityFilter === p && 'font-bold text-accent-500')}>
-                  {PRIORITY_LABELS[p]}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                Сбросить
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 min-h-[44px]"
+                onClick={() => setFiltersOpen(false)}
+              >
+                Готово
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -224,7 +266,12 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
               <ArrowDownUp className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent
+            align="end"
+            side="bottom"
+            collisionPadding={{ top: 12, bottom: 96, left: 12, right: 12 }}
+            className="w-48 max-h-[min(var(--radix-dropdown-menu-content-available-height,50vh),calc(100dvh-7rem))]"
+          >
             <DropdownMenuGroup>
               {(
                 [
@@ -269,14 +316,17 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
         <div className="flex flex-wrap gap-1.5">
           {taskTypeFilter !== 'all' && (
             <Chip
-              label={TASK_TYPE_LABELS[taskTypeFilter]}
+              label={TASK_TYPE_LABELS[taskTypeFilter as TaskType]}
               onClear={() => setTaskTypeFilter('all')}
             />
           )}
           {statusFilter !== 'all' && (
             <Chip
               label={STATUS_LABELS[statusFilter]}
-              onClear={() => setStatusFilter('all')}
+              onClear={() => {
+                setStatusFilter('all');
+                setHideCompleted(true);
+              }}
             />
           )}
           {priorityFilter !== 'all' && (
@@ -297,6 +347,46 @@ export function ContestFilters({ compact = false }: ContestFiltersProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function FilterSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-[rgb(var(--fg-muted))]">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function ChipRow({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap gap-1.5">{children}</div>;
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors min-h-[36px] touch-manipulation',
+        active
+          ? 'border-accent-400 bg-accent-50 text-accent-700 dark:bg-accent-900/40 dark:text-accent-200 dark:border-accent-700'
+          : 'border-[rgb(var(--border-default))] bg-[rgb(var(--bg-secondary))] text-[rgb(var(--fg-secondary))] hover:border-accent-300'
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
