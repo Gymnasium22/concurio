@@ -1,8 +1,8 @@
 /**
  * ContestForm — форма создания/редактирования задачи или конкурса
  */
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCreateContest, useUpdateContest } from '@/hooks/use-contests';
 import { useTelegramMainButton, useTelegramBackButton } from '@/hooks/use-telegram';
 import { useToast } from '@/components/ui/use-toast';
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CalendarIcon, Plus, Trash2, Link as LinkIcon } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import {
@@ -29,6 +29,12 @@ import {
   PRIORITY_LABELS,
   PRIORITY_ORDER,
 } from '@/lib/constants';
+import {
+  TASK_TEMPLATES,
+  daysFromNow,
+  getTemplateById,
+  type TaskTemplate,
+} from '@/lib/task-templates';
 import { cn, isValidTelegramLink } from '@/lib/utils';
 import { isTelegramApp } from '@/lib/telegram';
 import type {
@@ -47,9 +53,11 @@ interface ContestFormProps {
 
 export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const createMutation = useCreateContest();
   const updateMutation = useUpdateContest();
+  const urlTemplateApplied = useRef(false);
 
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
@@ -66,10 +74,16 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
   const [recurrence, setRecurrence] = useState<RecurrenceRule>(
     initialData?.recurrence || 'none'
   );
+  /** Выбранный шаблон (только создание) */
+  const [templateId, setTemplateId] = useState('blank');
+  const [stagesPreview, setStagesPreview] = useState<TaskTemplate['stages']>([]);
+  const [creatingStages, setCreatingStages] = useState(false);
 
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
+  const isSubmitting =
+    createMutation.isPending || updateMutation.isPending || creatingStages;
   const isFormValid = title.trim().length > 0;
   const showTelegramLinks = taskType === 'contest';
+  const activeTemplate = TASK_TEMPLATES.find((t) => t.id === templateId);
 
   useTelegramBackButton(() => navigate(-1));
 
@@ -84,6 +98,38 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
     disabled: !isFormValid || isSubmitting,
     loading: isSubmitting,
   });
+
+  const applyTemplate = (tpl: TaskTemplate) => {
+    setTemplateId(tpl.id);
+    setTaskType(tpl.task_type);
+    setPriority(tpl.priority);
+    setStagesPreview(tpl.stages);
+    if (tpl.dueDaysFromNow != null) {
+      setDueDate(daysFromNow(tpl.dueDaysFromNow));
+    } else if (tpl.stages.length > 0) {
+      const last = tpl.stages[tpl.stages.length - 1]!;
+      setDueDate(daysFromNow(last.daysFromStart));
+    }
+    if (tpl.descriptionHint) {
+      setDescription((prev) => (prev.trim() ? prev : tpl.descriptionHint!));
+    }
+  };
+
+  /** Ссылка вида /create?template=contest-3 */
+  useEffect(() => {
+    if (isEdit || urlTemplateApplied.current) return;
+    const id = searchParams.get('template');
+    if (!id) return;
+    const tpl = getTemplateById(id);
+    if (!tpl || tpl.id === 'blank') return;
+    urlTemplateApplied.current = true;
+    applyTemplate(tpl);
+    // убрать query, чтобы назад/обновить не дублировали эффект странно
+    const next = new URLSearchParams(searchParams);
+    next.delete('template');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- apply once from URL
+  }, [isEdit, searchParams, setSearchParams]);
 
   const parseTags = (raw: string) =>
     raw
@@ -132,13 +178,42 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
           recurrence,
         };
         const created = await createMutation.mutateAsync(insertData);
+
+        // Подзадачи-этапы из шаблона
+        if (stagesPreview.length > 0) {
+          setCreatingStages(true);
+          try {
+            for (let i = 0; i < stagesPreview.length; i++) {
+              const stage = stagesPreview[i]!;
+              await createMutation.mutateAsync({
+                title: stage.title,
+                parent_id: created.id,
+                task_type: 'task',
+                status: 'todo',
+                progress: 0,
+                priority,
+                due_date: daysFromNow(stage.daysFromStart).toISOString(),
+                position: i,
+              });
+            }
+          } finally {
+            setCreatingStages(false);
+          }
+        }
+
         toast({
-          title: taskType === 'contest' ? 'Конкурс создан' : 'Задача создана',
+          title:
+            stagesPreview.length > 0
+              ? `Создано + ${stagesPreview.length} этап(а/ов)`
+              : taskType === 'contest'
+                ? 'Конкурс создан'
+                : 'Задача создана',
           variant: 'success',
         });
         navigate(`/contest/${created.id}`, { replace: true });
       }
     } catch (err) {
+      setCreatingStages(false);
       toast({
         title: 'Ошибка сохранения',
         description: err instanceof Error ? err.message : undefined,
@@ -160,6 +235,70 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
       onSubmit={handleSubmit}
       className="space-y-5 sm:space-y-6 max-w-2xl mx-auto pb-[max(1rem,var(--tg-main-button-space,0px))]"
     >
+      {/* Шаблоны — только при создании */}
+      {!isEdit && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium inline-flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4 text-accent-500" />
+            Шаблон
+          </label>
+          <p className="text-[11px] text-[rgb(var(--fg-muted))]">
+            Выберите заготовку — подставятся тип, приоритет, даты и этапы. Всё можно
+            поменять перед сохранением.
+          </p>
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2">
+            {TASK_TEMPLATES.map((tpl) => {
+              const selected = templateId === tpl.id;
+              return (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => applyTemplate(tpl)}
+                  className={cn(
+                    'rounded-xl border px-3 py-2.5 text-left transition-all min-h-[52px] touch-manipulation',
+                    selected
+                      ? 'border-accent-500 bg-accent-50 shadow-sm dark:bg-accent-900/30 dark:border-accent-600'
+                      : 'border-[rgb(var(--border-default))] hover:bg-[rgb(var(--bg-secondary))]'
+                  )}
+                >
+                  <span className="block text-sm font-semibold leading-tight">
+                    {tpl.name}
+                  </span>
+                  <span className="block text-[11px] text-[rgb(var(--fg-muted))] mt-0.5">
+                    {tpl.hint}
+                    {tpl.stages.length > 0 ? ` · ${tpl.stages.length} этап(а)` : ''}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {stagesPreview.length > 0 && (
+            <div className="rounded-xl border border-dashed border-accent-300/60 bg-accent-50/40 dark:bg-accent-900/15 px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-accent-700 dark:text-accent-300 mb-1.5">
+                Этапы после создания
+              </p>
+              <ol className="space-y-1">
+                {stagesPreview.map((s, i) => (
+                  <li
+                    key={`${s.title}-${i}`}
+                    className="text-xs text-[rgb(var(--fg-secondary))] flex justify-between gap-2"
+                  >
+                    <span>
+                      {i + 1}. {s.title}
+                    </span>
+                    <span className="tabular-nums text-[rgb(var(--fg-muted))] shrink-0">
+                      {format(daysFromNow(s.daysFromStart), 'd MMM', {
+                        locale: ru,
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Тип */}
       <div className="space-y-2">
         <label className="text-sm font-medium">Тип</label>
@@ -168,7 +307,10 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
             <button
               key={type}
               type="button"
-              onClick={() => setTaskType(type)}
+              onClick={() => {
+                setTaskType(type);
+                // ручная смена типа — не сбрасываем шаблон целиком
+              }}
               className={cn(
                 'rounded-xl border px-2 sm:px-3 py-2.5 text-xs sm:text-sm font-medium transition-all min-h-[44px] touch-manipulation',
                 taskType === type
@@ -188,9 +330,10 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
         </label>
         <Input
           placeholder={
-            taskType === 'contest'
+            activeTemplate?.titlePlaceholder ||
+            (taskType === 'contest'
               ? 'Например: Грант Росмолодежи 2026'
-              : 'Например: Подготовить презентацию'
+              : 'Например: Подготовить презентацию')
           }
           value={title}
           onChange={(e) => setTitle(e.target.value)}

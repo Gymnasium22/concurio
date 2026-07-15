@@ -272,6 +272,11 @@ export interface UserPreferences {
   user_id: string;
   widgets: HomeWidgetId[];
   onboarding_done: boolean;
+  /** Присылать дайджест в Telegram-бот */
+  tg_notify_enabled: boolean;
+  /** Час UTC для утреннего дайджеста (0–23) */
+  tg_digest_hour: number;
+  tg_last_digest_at: string | null;
   updated_at: string;
 }
 

@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.share-preview]
 verify_jwt = false
+
+[functions.telegram-bot]
+verify_jwt = false

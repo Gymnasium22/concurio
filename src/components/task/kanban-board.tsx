@@ -9,18 +9,22 @@ import {
   STATUS_ORDER,
   STATUS_HINTS,
   progressForStatusChange,
+  PRIORITY_BAR,
+  PRIORITY_LABELS,
+  TASK_TYPE_LABELS,
 } from '@/lib/constants';
 import type { Contest, ContestStatus } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate, cn } from '@/lib/utils';
+import { formatDate, getDeadlineUrgency, getUrgencyColor, cn } from '@/lib/utils';
 import { haptic } from '@/lib/telegram';
-import { MoreHorizontal } from 'lucide-react';
+import { Calendar, GitBranch, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/components/ui/use-toast';
 
 const MAIN_COLUMNS: ContestStatus[] = [...STATUS_ORDER];
 const ALL_COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
@@ -36,6 +40,7 @@ const COLUMN_ACCENT: Record<ContestStatus, string> = {
 export function KanbanBoard() {
   const { data: contests, isLoading } = useContestsBoard();
   const updateStatus = useUpdateContestStatus();
+  const { toast } = useToast();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropStatus, setDropStatus] = useState<ContestStatus | null>(null);
 
@@ -62,6 +67,11 @@ export function KanbanBoard() {
       id: contest.id,
       status,
       progress: progressForStatusChange(status, contest.progress),
+    });
+    toast({
+      title: STATUS_LABELS[status],
+      description: contest.title,
+      variant: 'success',
     });
   };
 
@@ -94,7 +104,6 @@ export function KanbanBoard() {
         'pb-2 pt-0.5',
         '-mx-3 px-3 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0',
         'scroll-smooth snap-x snap-mandatory lg:snap-none',
-        /* desktop: колонки тянутся на высоту экрана */
         'lg:min-h-[min(72vh,calc(100dvh-13rem))]'
       )}
       style={{ WebkitOverflowScrolling: 'touch' }}
@@ -130,7 +139,7 @@ export function KanbanBoard() {
                 : 'border-[rgb(var(--border-default))]'
             )}
           >
-            <div className="px-2.5 py-2.5 border-b border-[rgb(var(--border-default))]/80 flex items-center justify-between shrink-0 gap-1">
+            <div className="px-2.5 py-2 border-b border-[rgb(var(--border-default))]/80 flex items-center justify-between shrink-0 gap-1">
               <div className="min-w-0">
                 <h3 className="text-xs sm:text-sm font-bold truncate">
                   {STATUS_LABELS[status]}
@@ -146,79 +155,148 @@ export function KanbanBoard() {
 
             <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-1.5 min-h-[80px]">
               {items.length === 0 && (
-                <p className="text-[11px] text-center text-[rgb(var(--fg-muted))] py-8 px-1 leading-snug">
-                  {isDropTarget ? 'Отпустите сюда' : 'Пусто'}
-                </p>
-              )}
-              {items.map((c) => (
                 <div
-                  key={c.id}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, c)}
-                  onDragEnd={onDragEnd}
                   className={cn(
-                    'rounded-xl p-2.5 border border-[rgb(var(--border-default))] bg-[rgb(var(--bg-card))]',
-                    'hover:border-accent-400/50 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing',
-                    draggingId === c.id && 'opacity-40 scale-[0.98]'
+                    'rounded-xl border border-dashed px-2 py-10 text-center',
+                    isDropTarget
+                      ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
+                      : 'border-[rgb(var(--border-default))]'
                   )}
                 >
-                  <div className="flex items-start gap-1">
-                    <Link
-                      to={`/contest/${c.id}`}
-                      className="flex-1 min-w-0 block"
-                      draggable={false}
-                    >
-                      <p className="text-sm font-semibold line-clamp-2 hover:text-accent-500">
-                        {c.title}
-                      </p>
-                      {c.due_date && (
-                        <p className="text-[10px] text-[rgb(var(--fg-muted))] mt-1">
-                          {formatDate(c.due_date)}
-                        </p>
-                      )}
-                      <div className="mt-1.5 h-1 rounded-full bg-[rgb(var(--bg-secondary))]">
-                        <div
-                          className="h-full rounded-full bg-accent-500 transition-[width]"
-                          style={{ width: `${c.progress}%` }}
-                        />
-                      </div>
-                    </Link>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="p-1 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-secondary))] shrink-0"
-                          aria-label="Переместить"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        {MAIN_COLUMNS.filter((s) => s !== c.status).map((s) => (
-                          <DropdownMenuItem
-                            key={s}
-                            disabled={updateStatus.isPending}
-                            onClick={() => void moveTo(c, s)}
-                          >
-                            → {STATUS_LABELS[s]}
-                          </DropdownMenuItem>
-                        ))}
-                        {c.status !== 'cancelled' && (
-                          <DropdownMenuItem
-                            disabled={updateStatus.isPending}
-                            onClick={() => void moveTo(c, 'cancelled')}
-                            className="text-red-500"
-                          >
-                            → {STATUS_LABELS.cancelled}
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <p className="text-[11px] text-[rgb(var(--fg-muted))] leading-snug">
+                    {isDropTarget ? 'Отпустите сюда' : 'Перетащите карточку'}
+                  </p>
                 </div>
-              ))}
+              )}
+              {items.map((c) => {
+                const urgency = getDeadlineUrgency(c.due_date);
+                const dueColor = getUrgencyColor(urgency);
+                const subCount = c.subtask_count ?? 0;
+                const subDone = c.subtask_done_count ?? 0;
+                const stageDue = c.next_stage_due_date;
+                const muted = c.status === 'done' || c.status === 'cancelled';
+
+                return (
+                  <div
+                    key={c.id}
+                    draggable
+                    onDragStart={(e) => onDragStart(e, c)}
+                    onDragEnd={onDragEnd}
+                    className={cn(
+                      'rounded-xl border bg-[rgb(var(--bg-card))] overflow-hidden',
+                      'hover:border-accent-400/50 hover:shadow-sm transition-all',
+                      'cursor-grab active:cursor-grabbing',
+                      draggingId === c.id && 'opacity-40 scale-[0.98]',
+                      muted && 'opacity-75',
+                      'border-[rgb(var(--border-default))]'
+                    )}
+                  >
+                    <div className="flex">
+                      <div
+                        className={cn(
+                          'w-1 shrink-0 self-stretch',
+                          PRIORITY_BAR[c.priority] ?? PRIORITY_BAR.medium
+                        )}
+                        title={PRIORITY_LABELS[c.priority]}
+                      />
+                      <div className="flex-1 min-w-0 p-2 pl-2">
+                        <div className="flex items-start gap-0.5">
+                          <Link
+                            to={`/contest/${c.id}`}
+                            className="flex-1 min-w-0 block outline-none focus-visible:ring-2 focus-visible:ring-accent-400 rounded-md"
+                            draggable={false}
+                          >
+                            <p
+                              className={cn(
+                                'text-sm font-semibold line-clamp-2 leading-snug hover:text-accent-500',
+                                c.status === 'done' &&
+                                  'line-through text-[rgb(var(--fg-muted))]'
+                              )}
+                            >
+                              {c.title}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                              <span className="text-[10px] text-[rgb(var(--fg-muted))]">
+                                {TASK_TYPE_LABELS[c.task_type] ?? 'Задача'}
+                              </span>
+                              {subCount > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[10px] text-[rgb(var(--fg-muted))] tabular-nums"
+                                  title={`Этапы ${subDone}/${subCount}`}
+                                >
+                                  <GitBranch className="h-2.5 w-2.5" />
+                                  {subDone}/{subCount}
+                                </span>
+                              )}
+                            </div>
+                            {(c.due_date || stageDue) && (
+                              <p
+                                className={cn(
+                                  'text-[10px] mt-1 flex items-center gap-1 font-medium',
+                                  c.due_date ? dueColor : 'text-[rgb(var(--fg-muted))]'
+                                )}
+                              >
+                                <Calendar className="h-3 w-3 shrink-0 opacity-80" />
+                                <span className="truncate">
+                                  {stageDue && !c.due_date
+                                    ? `Этап · ${formatDate(stageDue)}`
+                                    : formatDate(c.due_date)}
+                                </span>
+                              </p>
+                            )}
+                            <div className="mt-1.5 h-1 rounded-full bg-[rgb(var(--bg-secondary))] overflow-hidden">
+                              <div
+                                className={cn(
+                                  'h-full rounded-full transition-[width]',
+                                  c.status === 'done'
+                                    ? 'bg-emerald-500'
+                                    : c.status === 'review'
+                                      ? 'bg-amber-500'
+                                      : 'bg-accent-500'
+                                )}
+                                style={{ width: `${Math.min(100, c.progress)}%` }}
+                              />
+                            </div>
+                          </Link>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="p-1.5 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-secondary))] shrink-0 touch-manipulation min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                aria-label="Переместить"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              {MAIN_COLUMNS.filter((s) => s !== c.status).map((s) => (
+                                <DropdownMenuItem
+                                  key={s}
+                                  disabled={updateStatus.isPending}
+                                  onClick={() => void moveTo(c, s)}
+                                >
+                                  → {STATUS_LABELS[s]}
+                                </DropdownMenuItem>
+                              ))}
+                              {c.status !== 'cancelled' && (
+                                <DropdownMenuItem
+                                  disabled={updateStatus.isPending}
+                                  onClick={() => void moveTo(c, 'cancelled')}
+                                  className="text-red-500"
+                                >
+                                  → {STATUS_LABELS.cancelled}
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

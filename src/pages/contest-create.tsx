@@ -24,9 +24,14 @@ export function ContestCreate() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
-        <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">
-          Новая задача
-        </h1>
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">
+            Создать
+          </h1>
+          <p className="text-xs sm:text-sm text-[rgb(var(--fg-muted))] mt-0.5">
+            Шаблон или с нуля — этапы подставятся сами
+          </p>
+        </div>
       </div>
 
       <div className="glass p-4 sm:p-8 rounded-2xl sm:rounded-3xl pb-4 sm:pb-8 overflow-hidden">

@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Clock, Target } from 'lucide-react';
 import { ProgressRing } from '@/components/dashboard/progress-ring';
 import { motion, type Variants } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -25,14 +26,28 @@ const itemVariants: Variants = {
   },
 };
 
-export function StatsCards() {
+export function StatsCards({
+  /** 2×2 в сайдбаре desktop — без раздувания главной */
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const { data: stats, isLoading } = useDashboardStats();
 
   if (isLoading || !stats) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+      <div
+        className={
+          compact
+            ? 'grid grid-cols-2 gap-2'
+            : 'grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3'
+        }
+      >
         {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-[4.25rem] rounded-2xl" />
+          <Skeleton
+            key={i}
+            className={compact ? 'h-16 rounded-xl' : 'h-[4.25rem] rounded-2xl'}
+          />
         ))}
       </div>
     );
@@ -46,14 +61,23 @@ export function StatsCards() {
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3"
+      className={
+        compact
+          ? 'grid grid-cols-2 gap-2'
+          : 'grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3'
+      }
     >
       <motion.div variants={itemVariants}>
-        <Card className="neu h-full border-none">
-          <CardContent className="p-3 flex items-center gap-2.5 min-h-[4.25rem]">
+        <Card className={cn('neu h-full border-none', compact && 'rounded-xl')}>
+          <CardContent
+            className={cn(
+              'flex items-center gap-2.5',
+              compact ? 'p-2.5 min-h-[3.5rem]' : 'p-3 min-h-[4.25rem]'
+            )}
+          >
             <ProgressRing
               progress={overallProgress}
-              size={44}
+              size={compact ? 36 : 44}
               strokeWidth={4}
               color="accent"
               className="shrink-0"
@@ -62,7 +86,12 @@ export function StatsCards() {
               <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
                 Готово
               </span>
-              <span className="text-base font-bold tabular-nums leading-none">
+              <span
+                className={cn(
+                  'font-bold tabular-nums leading-none',
+                  compact ? 'text-sm' : 'text-base'
+                )}
+              >
                 {stats.completed}
                 <span className="text-[rgb(var(--fg-muted))] font-semibold text-sm">
                   {' '}
@@ -75,8 +104,13 @@ export function StatsCards() {
       </motion.div>
 
       <motion.div variants={itemVariants}>
-        <Card className="glass h-full">
-          <CardContent className="p-3 flex flex-col justify-between h-full gap-1 min-h-[4.25rem]">
+        <Card className={cn('glass h-full', compact && 'rounded-xl')}>
+          <CardContent
+            className={cn(
+              'flex flex-col justify-between h-full gap-1',
+              compact ? 'p-2.5 min-h-[3.5rem]' : 'p-3 min-h-[4.25rem]'
+            )}
+          >
             <div className="flex justify-between items-start gap-1">
               <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
                 В работе
@@ -85,14 +119,23 @@ export function StatsCards() {
                 <Clock className="h-3.5 w-3.5" />
               </div>
             </div>
-            <span className="text-xl font-bold tabular-nums">{stats.inProgress}</span>
+            <span
+              className={cn('font-bold tabular-nums', compact ? 'text-lg' : 'text-xl')}
+            >
+              {stats.inProgress}
+            </span>
           </CardContent>
         </Card>
       </motion.div>
 
       <motion.div variants={itemVariants}>
-        <Card className="glass h-full">
-          <CardContent className="p-3 flex flex-col justify-between h-full gap-1 min-h-[4.25rem]">
+        <Card className={cn('glass h-full', compact && 'rounded-xl')}>
+          <CardContent
+            className={cn(
+              'flex flex-col justify-between h-full gap-1',
+              compact ? 'p-2.5 min-h-[3.5rem]' : 'p-3 min-h-[4.25rem]'
+            )}
+          >
             <div className="flex justify-between items-start gap-1">
               <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
                 Просрочено
@@ -101,14 +144,23 @@ export function StatsCards() {
                 <AlertTriangle className="h-3.5 w-3.5" />
               </div>
             </div>
-            <span className="text-xl font-bold tabular-nums">{stats.overdue}</span>
+            <span
+              className={cn('font-bold tabular-nums', compact ? 'text-lg' : 'text-xl')}
+            >
+              {stats.overdue}
+            </span>
           </CardContent>
         </Card>
       </motion.div>
 
       <motion.div variants={itemVariants}>
-        <Card className="glass h-full">
-          <CardContent className="p-3 flex flex-col justify-between h-full gap-1 min-h-[4.25rem]">
+        <Card className={cn('glass h-full', compact && 'rounded-xl')}>
+          <CardContent
+            className={cn(
+              'flex flex-col justify-between h-full gap-1',
+              compact ? 'p-2.5 min-h-[3.5rem]' : 'p-3 min-h-[4.25rem]'
+            )}
+          >
             <div className="flex justify-between items-start gap-1">
               <span className="text-[10px] leading-tight text-[rgb(var(--fg-secondary))] font-medium uppercase tracking-wider">
                 ≤7 дней
@@ -117,7 +169,9 @@ export function StatsCards() {
                 <Target className="h-3.5 w-3.5" />
               </div>
             </div>
-            <span className="text-xl font-bold tabular-nums">
+            <span
+              className={cn('font-bold tabular-nums', compact ? 'text-lg' : 'text-xl')}
+            >
               {stats.upcomingDeadlines}
             </span>
           </CardContent>

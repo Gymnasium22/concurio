@@ -1,5 +1,5 @@
 /**
- * ContestDetailPage — страница детализации конкурса
+ * ContestDetailPage — страница задачи
  */
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useContest, useDeleteContest } from '@/hooks/use-contests';
@@ -16,6 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { StatusBadge } from '@/components/contest/status-badge';
+import { cn } from '@/lib/utils';
 
 export function ContestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -64,52 +66,66 @@ export function ContestDetailPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Шапка страницы */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className="space-y-4 sm:space-y-5 max-w-5xl mx-auto animate-in fade-in duration-300">
+      {/* Компактная шапка */}
+      <header className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
           {!isTg && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(-1)}
-              className="shrink-0 h-9 w-9"
+              className="shrink-0 h-9 w-9 mt-0.5"
+              aria-label="Назад"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
-          <h1
-            className="text-2xl sm:text-3xl font-bold tracking-tight line-clamp-1"
-            title={contest.title}
-          >
-            {contest.title}
-          </h1>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <StatusBadge status={contest.status} className="text-[10px] px-2 py-0.5" />
+              {contest.parent_id && (
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-[rgb(var(--fg-muted))]">
+                  Подзадача
+                </span>
+              )}
+            </div>
+            <h1
+              className={cn(
+                'text-xl sm:text-2xl font-bold tracking-tight',
+                'line-clamp-2 sm:line-clamp-3'
+              )}
+              title={contest.title}
+            >
+              {contest.title}
+            </h1>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Desktop actions */}
-          <div className="hidden sm:flex gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="hidden sm:flex gap-1.5">
             <Link to={`/contest/${contest.id}/edit`}>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Edit className="h-4 w-4" /> Редактировать
+              <Button variant="outline" size="sm" className="gap-1.5 min-h-[36px]">
+                <Edit className="h-4 w-4" />
+                <span className="hidden md:inline">Редактировать</span>
               </Button>
             </Link>
             <Button
-              variant="destructive"
+              variant="ghost"
               size="sm"
-              className="gap-2"
-              onClick={handleDelete}
+              className="gap-1.5 min-h-[36px] text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+              onClick={() => void handleDelete()}
               disabled={deleteMutation.isPending}
             >
-              <Trash2 className="h-4 w-4" /> Удалить
+              <Trash2 className="h-4 w-4" />
+              <span className="hidden md:inline">В корзину</span>
             </Button>
           </div>
 
-          {/* Mobile actions (dropdown) */}
           <div className="sm:hidden">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Меню">
                   <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -124,19 +140,18 @@ export function ContestDetailPage() {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={handleDelete}
+                  onClick={() => void handleDelete()}
                   disabled={deleteMutation.isPending}
                   className="text-red-500 focus:text-red-600 focus:bg-red-50"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" /> Удалить
+                  <Trash2 className="mr-2 h-4 w-4" /> В корзину
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Основной контент */}
       <ContestDetail contest={contest} />
     </div>
   );

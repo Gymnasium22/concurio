@@ -16,9 +16,14 @@ import {
   Zap,
   Archive,
   LayoutGrid,
+  Bell,
+  Send,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { usePreferences, useSavePreferences } from '@/hooks/use-platform';
+import { requestTelegramDigest } from '@/services/preferencesService';
+import { cn } from '@/lib/utils';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -31,10 +36,13 @@ export function ProfilePage() {
     isLoading,
     error,
   } = useAuth();
+  const { data: prefs } = usePreferences();
+  const savePrefs = useSavePreferences();
 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [password, setPassword] = useState('');
+  const [digestBusy, setDigestBusy] = useState(false);
 
   if (!user) {
     return null;
@@ -97,6 +105,36 @@ export function ProfilePage() {
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const notifyOn = prefs?.tg_notify_enabled !== false;
+
+  const toggleNotify = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await savePrefs.mutateAsync({ tg_notify_enabled: !notifyOn });
+      setMessage(
+        !notifyOn ? 'Дайджест в Telegram включён' : 'Дайджест в Telegram выключен'
+      );
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Не удалось сохранить');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendTestDigest = async () => {
+    setDigestBusy(true);
+    setMessage(null);
+    try {
+      await requestTelegramDigest();
+      setMessage('Дайджест отправлен в Telegram. Проверьте чат с ботом.');
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : 'Не удалось отправить');
+    } finally {
+      setDigestBusy(false);
+    }
   };
 
   return (
@@ -178,6 +216,112 @@ export function ProfilePage() {
             {message || error}
           </div>
         )}
+
+        {/* Этап 4: уведомления бота */}
+        <div className="rounded-2xl border border-[rgb(var(--border-default))] p-4 sm:p-5 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Bell className="h-4 w-4 text-accent-500" />
+            Telegram-бот
+          </div>
+          <p className="text-sm text-[rgb(var(--fg-secondary))] leading-relaxed">
+            Бот @{import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'concurio_bot'} отвечает
+            на /today и может присылать дайджест «что горит». Нужна привязка Telegram к
+            аккаунту.
+          </p>
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-[rgb(var(--bg-secondary))] px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Авто-дайджест</p>
+              <p className="text-[11px] text-[rgb(var(--fg-muted))]">
+                Раз в сутки в выбран час (сервер проверяет каждый час)
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifyOn}
+              disabled={busy || savePrefs.isPending}
+              onClick={() => void toggleNotify()}
+              className={cn(
+                'relative h-7 w-12 shrink-0 rounded-full transition-colors',
+                notifyOn ? 'bg-accent-500' : 'bg-[rgb(var(--border-strong))]'
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform',
+                  notifyOn && 'translate-x-5'
+                )}
+              />
+            </button>
+          </div>
+
+          {notifyOn && (
+            <div className="space-y-1.5">
+              <label
+                htmlFor="digest-hour"
+                className="text-xs font-medium text-[rgb(var(--fg-secondary))]"
+              >
+                Во сколько присылать (по Москве)
+              </label>
+              <select
+                id="digest-hour"
+                className={cn(
+                  'w-full rounded-xl border border-[rgb(var(--border-default))]',
+                  'bg-[rgb(var(--bg-secondary))] px-3 py-2.5 text-sm min-h-[44px]',
+                  'touch-manipulation'
+                )}
+                value={String(prefs?.tg_digest_hour ?? 9)}
+                disabled={busy || savePrefs.isPending}
+                onChange={(e) => {
+                  const hour = Number(e.target.value);
+                  void savePrefs
+                    .mutateAsync({ tg_digest_hour: hour })
+                    .then(() =>
+                      setMessage(`Дайджест около ${hour + 3}:00 МСК (час UTC ${hour})`)
+                    )
+                    .catch((err: unknown) =>
+                      setMessage(err instanceof Error ? err.message : 'Не сохранилось')
+                    );
+                }}
+              >
+                {/* value = UTC hour; label = МСК (UTC+3) */}
+                <option value="3">06:00 МСК</option>
+                <option value="6">09:00 МСК</option>
+                <option value="9">12:00 МСК (по умолчанию)</option>
+                <option value="12">15:00 МСК</option>
+                <option value="15">18:00 МСК</option>
+                <option value="18">21:00 МСК</option>
+              </select>
+              {prefs?.tg_last_digest_at && (
+                <p className="text-[11px] text-[rgb(var(--fg-muted))]">
+                  Последняя отправка:{' '}
+                  {new Date(prefs.tg_last_digest_at).toLocaleString('ru-RU', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              )}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2 min-h-[44px]"
+            onClick={() => void sendTestDigest()}
+            disabled={digestBusy || busy || !isTelegramLinked}
+          >
+            <Send className="h-4 w-4" />
+            {digestBusy ? 'Отправляю…' : 'Прислать дайджест сейчас'}
+          </Button>
+          {!isTelegramLinked && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400">
+              Сначала привяжите Telegram ниже — иначе бот не знает, кому писать.
+            </p>
+          )}
+        </div>
 
         <div className="space-y-3">
           <Button

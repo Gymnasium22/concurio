@@ -2,7 +2,14 @@
  * App — роутинг, auth, public share, platform pages
  */
 import { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import {
   QueryClient,
   QueryClientProvider,
@@ -10,7 +17,7 @@ import {
   MutationCache,
 } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/use-auth';
-import { initTelegramApp, isTelegramApp } from '@/lib/telegram';
+import { getTelegramStartParam, initTelegramApp, isTelegramApp } from '@/lib/telegram';
 import { useAppStore } from '@/stores/app-store';
 import { AppLayout } from '@/components/layout/app-layout';
 import { LoginPage } from '@/components/auth/login-page';
@@ -117,6 +124,7 @@ function AppRouter() {
   const { user, isLoading } = useAuth();
   const { setIsTelegramApp } = useAppStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const publicRoute = isPublicPath(location.pathname);
 
   useEffect(() => {
@@ -125,6 +133,19 @@ function AppRouter() {
       initTelegramApp();
     }
   }, [setIsTelegramApp]);
+
+  /** Deep link: startapp=contest_<uuid> → карточка задачи */
+  useEffect(() => {
+    if (!user || isLoading) return;
+    const start = getTelegramStartParam();
+    if (!start) return;
+    if (start.startsWith('contest_')) {
+      const id = start.slice('contest_'.length).trim();
+      if (id && location.pathname !== `/contest/${id}`) {
+        navigate(`/contest/${id}`, { replace: true });
+      }
+    }
+  }, [user, isLoading, navigate, location.pathname]);
 
   if (publicRoute) {
     return (

@@ -151,6 +151,8 @@ export function useSavePreferences() {
     mutationFn: async (patch: {
       widgets?: HomeWidgetId[];
       onboarding_done?: boolean;
+      tg_notify_enabled?: boolean;
+      tg_digest_hour?: number;
     }) => {
       const {
         data: { session },

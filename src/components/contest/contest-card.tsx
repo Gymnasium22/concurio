@@ -4,7 +4,6 @@
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from '@/components/contest/status-badge';
-import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import {
   Calendar,
@@ -137,7 +136,9 @@ export function ContestCard({ contest, index }: ContestCardProps) {
       <Card
         className={cn(
           'glass group h-full overflow-hidden flex flex-row',
-          'hover:border-accent-400/50 hover:shadow-lg transition-all duration-300'
+          'hover:border-accent-400/50 hover:shadow-lg transition-all duration-300',
+          contest.status === 'done' && 'opacity-80',
+          contest.status === 'cancelled' && 'opacity-70 grayscale-[0.3]'
         )}
       >
         <div
@@ -187,7 +188,9 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                 className={cn(
                   'mt-1.5 text-sm sm:text-[0.95rem] font-semibold leading-snug',
                   'text-[rgb(var(--fg-primary))] group-hover:text-accent-500 transition-colors',
-                  'line-clamp-2 min-h-[1.35em]'
+                  'line-clamp-2 min-h-[1.35em]',
+                  contest.status === 'done' &&
+                    'line-through text-[rgb(var(--fg-muted))] decoration-[rgb(var(--fg-muted))]'
                 )}
                 title={contest.title}
               >
@@ -256,7 +259,21 @@ export function ContestCard({ contest, index }: ContestCardProps) {
                 )}
 
                 <div className="flex items-center gap-2">
-                  <Progress value={contest.progress} className="h-1.5 flex-1" />
+                  <div className="relative h-1.5 flex-1 rounded-full bg-[rgb(var(--bg-secondary))] overflow-hidden">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-[width]',
+                        contest.status === 'done'
+                          ? 'bg-emerald-500'
+                          : contest.status === 'review'
+                            ? 'bg-amber-500'
+                            : 'bg-gradient-to-r from-accent-500 to-accent-400'
+                      )}
+                      style={{
+                        width: `${Math.min(100, Math.max(0, contest.progress))}%`,
+                      }}
+                    />
+                  </div>
                   <span className="text-[10px] font-bold w-8 text-right tabular-nums text-[rgb(var(--fg-secondary))]">
                     {contest.progress}%
                   </span>

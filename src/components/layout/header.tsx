@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const primaryLinks = [
-  { path: '/', label: 'Задачи' },
+  { path: '/', label: 'Главная' },
   { path: '/kanban', label: 'Канбан' },
   { path: '/calendar', label: 'Календарь' },
 ];

@@ -38,18 +38,27 @@ export function DeadlineCalendar() {
 
   const byDay = useMemo(() => {
     const map = new Map<string, Contest[]>();
-    for (const c of contests ?? []) {
-      if (!c.due_date) continue;
-      const key = format(new Date(c.due_date), 'yyyy-MM-dd');
+    const add = (key: string, c: Contest) => {
       const list = map.get(key) ?? [];
-      list.push(c);
+      // не дублировать одну задачу в день
+      if (!list.some((x) => x.id === c.id)) list.push(c);
       map.set(key, list);
+    };
+    for (const c of contests ?? []) {
+      if (c.status === 'cancelled') continue;
+      if (c.due_date) {
+        add(format(new Date(c.due_date), 'yyyy-MM-dd'), c);
+      }
+      // ближайший этап тоже на календаре
+      if (c.next_stage_due_date) {
+        add(format(new Date(c.next_stage_due_date), 'yyyy-MM-dd'), c);
+      }
     }
     return map;
   }, [contests]);
 
   const selectedKey = selected ? format(selected, 'yyyy-MM-dd') : null;
-  const selectedTasks = selectedKey ? byDay.get(selectedKey) ?? [] : [];
+  const selectedTasks = selectedKey ? (byDay.get(selectedKey) ?? []) : [];
 
   if (isLoading) {
     return <Skeleton className="h-80 w-full rounded-2xl" />;
@@ -126,9 +135,7 @@ export function DeadlineCalendar() {
 
       <div className="lg:col-span-2 glass rounded-2xl p-4 sm:p-5 space-y-3">
         <h3 className="text-sm font-bold">
-          {selected
-            ? format(selected, 'd MMMM yyyy', { locale: ru })
-            : 'Выберите день'}
+          {selected ? format(selected, 'd MMMM yyyy', { locale: ru }) : 'Выберите день'}
         </h3>
         {selectedTasks.length === 0 ? (
           <p className="text-sm text-[rgb(var(--fg-muted))]">Нет дедлайнов в этот день</p>
