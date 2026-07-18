@@ -75,6 +75,15 @@ function matches(
   return true;
 }
 
+/** Правило workspace: null = глобально; иначе только задачи этого workspace */
+function ruleAppliesToWorkspace(
+  rule: AutomationRule,
+  workspaceId: string | null | undefined
+): boolean {
+  if (rule.workspace_id == null) return true;
+  return rule.workspace_id === (workspaceId ?? null);
+}
+
 /** Применить правила к insert-данным */
 export function applyRulesToInsert(
   rules: AutomationRule[],
@@ -82,9 +91,9 @@ export function applyRulesToInsert(
   trigger: AutomationRule['trigger_on'] = 'on_create'
 ): ContestInsert {
   const next = { ...input };
-  for (const rule of rules.filter(
-    (r) => r.trigger_on === trigger || r.trigger_on === 'on_create'
-  )) {
+  for (const rule of rules) {
+    if (rule.trigger_on !== trigger) continue;
+    if (!ruleAppliesToWorkspace(rule, next.workspace_id)) continue;
     if (!matches(rule, next)) continue;
     const a = rule.actions || {};
     if (a.add_tags?.length) {
@@ -104,10 +113,10 @@ export function applyRulesToUpdate(
 ): ContestUpdate {
   const next = { ...updates };
   const merged = { ...current, ...updates };
-  for (const rule of rules.filter(
-    (r) => r.trigger_on === 'on_update' || r.trigger_on === 'on_status'
-  )) {
+  for (const rule of rules) {
+    if (rule.trigger_on !== 'on_update' && rule.trigger_on !== 'on_status') continue;
     if (rule.trigger_on === 'on_status' && updates.status == null) continue;
+    if (!ruleAppliesToWorkspace(rule, merged.workspace_id)) continue;
     if (!matches(rule, merged)) continue;
     const a = rule.actions || {};
     if (a.add_tags?.length) {

@@ -78,12 +78,17 @@ export function useFileUpload(): UseFileUploadReturn {
         const hasAllowedExtension = Array.from(allowedExtensions).some((ext) =>
           normalizedName.endsWith(ext)
         );
-        const hasAllowedMimeType = acceptedTypes.has(file.type);
-        const isAllowedFile = hasAllowedExtension || hasAllowedMimeType;
-
-        if (!isAllowedFile) {
+        // MIME без расширения — обход (spoof). Требуем реальное расширение allowlist.
+        if (!hasAllowedExtension) {
           errors.push(
             `"${file.name}" — неподдерживаемый формат. Допускаются ${ACCEPTED_FILE_LABELS}.`
+          );
+          continue;
+        }
+        // Если браузер отдал MIME — он должен быть из allowlist (или пустой)
+        if (file.type && !acceptedTypes.has(file.type)) {
+          errors.push(
+            `"${file.name}" — тип файла (${file.type}) не совпадает с разрешёнными.`
           );
           continue;
         }
@@ -108,12 +113,24 @@ export function useFileUpload(): UseFileUploadReturn {
     async (contestId: string, userId: string, files: File[]): Promise<Attachment[]> => {
       setUploadState({ isUploading: true, progress: 0, error: null });
 
+      // Повторная валидация — нельзя обойти, вызвав upload напрямую
+      const { valid, errors } = validateFiles(files);
+      if (errors.length > 0 && valid.length === 0) {
+        setUploadState({
+          isUploading: false,
+          progress: 0,
+          error: errors[0] ?? 'Файлы отклонены',
+        });
+        return [];
+      }
+
       const uploaded: Attachment[] = [];
-      const total = files.length;
+      const total = valid.length;
 
       try {
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i]!;
+        for (let i = 0; i < valid.length; i++) {
+          const file = valid[i]!;
+          assertSafeUpload(file);
           const attachment = await createAttachment(
             contestId,
             userId,
@@ -128,7 +145,11 @@ export function useFileUpload(): UseFileUploadReturn {
           }));
         }
 
-        setUploadState({ isUploading: false, progress: 100, error: null });
+        setUploadState({
+          isUploading: false,
+          progress: 100,
+          error: errors.length ? errors.join(' ') : null,
+        });
 
         // Инвалидируем кэш вложений
         await queryClient.invalidateQueries({
@@ -142,7 +163,7 @@ export function useFileUpload(): UseFileUploadReturn {
         return uploaded;
       }
     },
-    [queryClient]
+    [queryClient, validateFiles]
   );
 
   /**

@@ -1,7 +1,7 @@
 /**
- * Канбан: DnD, на desktop колонки заполняют ширину и высоту рабочей области
+ * Канбан: HTML5 DnD + pointer/touch drag для mobile
  */
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useContestsBoard, useUpdateContestStatus } from '@/hooks/use-contests';
 import {
@@ -25,6 +25,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LayoutGrid } from 'lucide-react';
 
 const MAIN_COLUMNS: ContestStatus[] = [...STATUS_ORDER];
 const ALL_COLUMNS: ContestStatus[] = [...STATUS_ORDER, 'cancelled'];
@@ -44,36 +46,110 @@ export function KanbanBoard() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropStatus, setDropStatus] = useState<ContestStatus | null>(null);
 
+  // Pointer / touch ghost
+  const [pointerDrag, setPointerDrag] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    title: string;
+  } | null>(null);
+  const pointerStart = useRef<{ x: number; y: number; id: string } | null>(null);
+  const columnEls = useRef<Map<ContestStatus, HTMLElement>>(new Map());
+
+  const moveTo = useCallback(
+    async (contest: Contest, status: ContestStatus) => {
+      if (contest.status === status) return;
+      haptic.light();
+      await updateStatus.mutateAsync({
+        id: contest.id,
+        status,
+        progress: progressForStatusChange(status, contest.progress),
+      });
+      toast({
+        title: STATUS_LABELS[status],
+        description: contest.title,
+        variant: 'success',
+      });
+    },
+    [toast, updateStatus]
+  );
+
+  const hitTestColumn = useCallback(
+    (clientX: number, clientY: number): ContestStatus | null => {
+      for (const [status, el] of columnEls.current) {
+        const r = el.getBoundingClientRect();
+        if (
+          clientX >= r.left &&
+          clientX <= r.right &&
+          clientY >= r.top &&
+          clientY <= r.bottom
+        ) {
+          return status;
+        }
+      }
+      return null;
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!pointerDrag) return;
+
+    const onMove = (e: PointerEvent) => {
+      setPointerDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY } : null));
+      setDropStatus(hitTestColumn(e.clientX, e.clientY));
+    };
+
+    const onUp = (e: PointerEvent) => {
+      const status = hitTestColumn(e.clientX, e.clientY);
+      const id = pointerDrag.id;
+      const contest = (contests ?? []).find((c) => c.id === id);
+      setPointerDrag(null);
+      setDraggingId(null);
+      setDropStatus(null);
+      pointerStart.current = null;
+      if (status && contest) {
+        void moveTo(contest, status);
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [pointerDrag, contests, hitTestColumn, moveTo]);
+
   if (isLoading) {
     return (
       <div className="flex gap-3 overflow-x-auto pb-3 -mx-3 px-3 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0">
         {[1, 2, 3, 4, 5].map((i) => (
           <Skeleton
             key={i}
-            className="h-72 w-[220px] shrink-0 rounded-2xl lg:flex-1 lg:w-auto"
+            className="h-72 w-[220px] shrink-0 rounded-2xl lg:flex-1 lg:w-auto animate-pulse"
           />
         ))}
       </div>
     );
   }
 
+  if (!contests?.length) {
+    return (
+      <EmptyState
+        icon={<LayoutGrid className="h-7 w-7 text-accent-500" />}
+        title="Канбан пуст"
+        description="Создайте задачу — она появится в колонке «Не начат». На телефоне перетаскивайте карточку пальцем."
+        actionLabel="Создать задачу"
+        actionTo="/create"
+      />
+    );
+  }
+
   const byStatus = (status: ContestStatus) =>
     (contests ?? []).filter((c) => c.status === status);
-
-  const moveTo = async (contest: Contest, status: ContestStatus) => {
-    if (contest.status === status) return;
-    haptic.light();
-    await updateStatus.mutateAsync({
-      id: contest.id,
-      status,
-      progress: progressForStatusChange(status, contest.progress),
-    });
-    toast({
-      title: STATUS_LABELS[status],
-      description: contest.title,
-      variant: 'success',
-    });
-  };
 
   const onDragStart = (e: React.DragEvent, contest: Contest) => {
     e.dataTransfer.setData('text/contest-id', contest.id);
@@ -97,211 +173,254 @@ export function KanbanBoard() {
     await moveTo(contest, status);
   };
 
+  const onCardPointerDown = (e: React.PointerEvent, contest: Contest) => {
+    // только primary touch/pen; мышь пусть использует HTML5 DnD
+    if (e.pointerType === 'mouse') return;
+    if ((e.target as HTMLElement).closest('a,button,[role="menuitem"]')) return;
+    pointerStart.current = { x: e.clientX, y: e.clientY, id: contest.id };
+    setDraggingId(contest.id);
+    setPointerDrag({
+      id: contest.id,
+      x: e.clientX,
+      y: e.clientY,
+      title: contest.title,
+    });
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
   return (
-    <div
-      className={cn(
-        'flex gap-2.5 sm:gap-3 overflow-x-auto overscroll-x-contain touch-pan-x',
-        'pb-2 pt-0.5',
-        '-mx-3 px-3 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0',
-        'scroll-smooth snap-x snap-mandatory lg:snap-none',
-        'lg:min-h-[min(72vh,calc(100dvh-13rem))]'
-      )}
-      style={{ WebkitOverflowScrolling: 'touch' }}
-    >
-      {ALL_COLUMNS.map((status) => {
-        const items = byStatus(status);
-        const isDropTarget = dropStatus === status;
-        const isNarrow = status === 'cancelled';
+    <>
+      <div
+        className={cn(
+          'flex gap-2.5 sm:gap-3 overflow-x-auto overscroll-x-contain touch-pan-x',
+          'pb-2 pt-0.5',
+          '-mx-3 px-3 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0',
+          'scroll-smooth snap-x snap-mandatory lg:snap-none',
+          'lg:min-h-[min(72vh,calc(100dvh-13rem))]',
+          pointerDrag && 'select-none'
+        )}
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        {ALL_COLUMNS.map((status) => {
+          const items = byStatus(status);
+          const isDropTarget = dropStatus === status;
+          const isNarrow = status === 'cancelled';
 
-        return (
-          <div
-            key={status}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
-              setDropStatus(status);
-            }}
-            onDragLeave={() => {
-              if (dropStatus === status) setDropStatus(null);
-            }}
-            onDrop={(e) => void onDropColumn(status, e)}
-            className={cn(
-              'snap-start shrink-0 flex flex-col rounded-2xl border border-t-[3px] transition-colors',
-              'bg-[rgb(var(--bg-secondary))]/70',
-              COLUMN_ACCENT[status],
-              isNarrow
-                ? 'w-[148px] sm:w-[160px] lg:w-[11%] lg:min-w-[7.5rem]'
-                : 'w-[min(240px,80vw)] sm:w-[250px] lg:flex-1 lg:min-w-0 lg:w-auto',
-              'min-h-[200px] max-h-[min(62vh,calc(var(--tg-viewport-stable-height,100dvh)-12rem))]',
-              'lg:max-h-none lg:min-h-[min(72vh,calc(100dvh-13rem))]',
-              isDropTarget
-                ? 'border-accent-400 bg-accent-50/50 dark:bg-accent-900/25 ring-2 ring-accent-400/30'
-                : 'border-[rgb(var(--border-default))]'
-            )}
-          >
-            <div className="px-2.5 py-2 border-b border-[rgb(var(--border-default))]/80 flex items-center justify-between shrink-0 gap-1">
-              <div className="min-w-0">
-                <h3 className="text-xs sm:text-sm font-bold truncate">
-                  {STATUS_LABELS[status]}
-                </h3>
-                <p className="text-[10px] text-[rgb(var(--fg-muted))] truncate leading-tight mt-0.5 hidden sm:block">
-                  {STATUS_HINTS[status]}
-                </p>
-              </div>
-              <span className="text-[10px] font-semibold text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-1.5 py-0.5 rounded-full shrink-0 tabular-nums min-w-[1.25rem] text-center">
-                {items.length}
-              </span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-1.5 min-h-[80px]">
-              {items.length === 0 && (
-                <div
-                  className={cn(
-                    'rounded-xl border border-dashed px-2 py-10 text-center',
-                    isDropTarget
-                      ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
-                      : 'border-[rgb(var(--border-default))]'
-                  )}
-                >
-                  <p className="text-[11px] text-[rgb(var(--fg-muted))] leading-snug">
-                    {isDropTarget ? 'Отпустите сюда' : 'Перетащите карточку'}
+          return (
+            <div
+              key={status}
+              ref={(el) => {
+                if (el) columnEls.current.set(status, el);
+                else columnEls.current.delete(status);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setDropStatus(status);
+              }}
+              onDragLeave={() => {
+                if (dropStatus === status) setDropStatus(null);
+              }}
+              onDrop={(e) => void onDropColumn(status, e)}
+              className={cn(
+                'snap-start shrink-0 flex flex-col rounded-2xl border border-t-[3px] transition-colors',
+                'bg-[rgb(var(--bg-secondary))]/70',
+                COLUMN_ACCENT[status],
+                isNarrow
+                  ? 'w-[148px] sm:w-[160px] lg:w-[11%] lg:min-w-[7.5rem]'
+                  : 'w-[min(240px,80vw)] sm:w-[250px] lg:flex-1 lg:min-w-0 lg:w-auto',
+                'min-h-[200px] max-h-[min(62vh,calc(var(--tg-viewport-stable-height,100dvh)-12rem))]',
+                'lg:max-h-none lg:min-h-[min(72vh,calc(100dvh-13rem))]',
+                isDropTarget
+                  ? 'border-accent-400 bg-accent-50/50 dark:bg-accent-900/25 ring-2 ring-accent-400/30 scale-[1.01]'
+                  : 'border-[rgb(var(--border-default))]'
+              )}
+            >
+              <div className="px-2.5 py-2 border-b border-[rgb(var(--border-default))]/80 flex items-center justify-between shrink-0 gap-1">
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-bold truncate">
+                    {STATUS_LABELS[status]}
+                  </h3>
+                  <p className="text-[10px] text-[rgb(var(--fg-muted))] truncate leading-tight mt-0.5 hidden sm:block">
+                    {STATUS_HINTS[status]}
                   </p>
                 </div>
-              )}
-              {items.map((c) => {
-                const urgency = getDeadlineUrgency(c.due_date);
-                const dueColor = getUrgencyColor(urgency);
-                const subCount = c.subtask_count ?? 0;
-                const subDone = c.subtask_done_count ?? 0;
-                const stageDue = c.next_stage_due_date;
-                const muted = c.status === 'done' || c.status === 'cancelled';
+                <span className="text-[10px] font-semibold text-[rgb(var(--fg-muted))] bg-[rgb(var(--bg-card))] px-1.5 py-0.5 rounded-full shrink-0 tabular-nums min-w-[1.25rem] text-center">
+                  {items.length}
+                </span>
+              </div>
 
-                return (
+              <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-1.5 min-h-[80px]">
+                {items.length === 0 && (
                   <div
-                    key={c.id}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, c)}
-                    onDragEnd={onDragEnd}
                     className={cn(
-                      'rounded-xl border bg-[rgb(var(--bg-card))] overflow-hidden',
-                      'hover:border-accent-400/50 hover:shadow-sm transition-all',
-                      'cursor-grab active:cursor-grabbing',
-                      draggingId === c.id && 'opacity-40 scale-[0.98]',
-                      muted && 'opacity-75',
-                      'border-[rgb(var(--border-default))]'
+                      'rounded-xl border border-dashed px-2 py-10 text-center',
+                      isDropTarget
+                        ? 'border-accent-400 bg-accent-50/40 dark:bg-accent-900/20'
+                        : 'border-[rgb(var(--border-default))]'
                     )}
                   >
-                    <div className="flex">
-                      <div
-                        className={cn(
-                          'w-1 shrink-0 self-stretch',
-                          PRIORITY_BAR[c.priority] ?? PRIORITY_BAR.medium
-                        )}
-                        title={PRIORITY_LABELS[c.priority]}
-                      />
-                      <div className="flex-1 min-w-0 p-2 pl-2">
-                        <div className="flex items-start gap-0.5">
-                          <Link
-                            to={`/contest/${c.id}`}
-                            className="flex-1 min-w-0 block outline-none focus-visible:ring-2 focus-visible:ring-accent-400 rounded-md"
-                            draggable={false}
-                          >
-                            <p
-                              className={cn(
-                                'text-sm font-semibold line-clamp-2 leading-snug hover:text-accent-500',
-                                c.status === 'done' &&
-                                  'line-through text-[rgb(var(--fg-muted))]'
-                              )}
+                    <p className="text-[11px] text-[rgb(var(--fg-muted))] leading-snug">
+                      {isDropTarget ? 'Отпустите сюда' : 'Перетащите карточку'}
+                    </p>
+                  </div>
+                )}
+                {items.map((c) => {
+                  const urgency = getDeadlineUrgency(c.due_date);
+                  const dueColor = getUrgencyColor(urgency);
+                  const subCount = c.subtask_count ?? 0;
+                  const subDone = c.subtask_done_count ?? 0;
+                  const stageDue = c.next_stage_due_date;
+                  const muted = c.status === 'done' || c.status === 'cancelled';
+
+                  return (
+                    <div
+                      key={c.id}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, c)}
+                      onDragEnd={onDragEnd}
+                      onPointerDown={(e) => onCardPointerDown(e, c)}
+                      className={cn(
+                        'rounded-xl border bg-[rgb(var(--bg-card))] overflow-hidden',
+                        'hover:border-accent-400/50 hover:shadow-sm transition-all',
+                        'cursor-grab active:cursor-grabbing touch-none',
+                        draggingId === c.id && 'opacity-40 scale-[0.98]',
+                        muted && 'opacity-75',
+                        'border-[rgb(var(--border-default))]'
+                      )}
+                    >
+                      <div className="flex">
+                        <div
+                          className={cn(
+                            'w-1 shrink-0 self-stretch',
+                            PRIORITY_BAR[c.priority] ?? PRIORITY_BAR.medium
+                          )}
+                          title={PRIORITY_LABELS[c.priority]}
+                        />
+                        <div className="flex-1 min-w-0 p-2 pl-2">
+                          <div className="flex items-start gap-0.5">
+                            <Link
+                              to={`/contest/${c.id}`}
+                              className="flex-1 min-w-0 block outline-none focus-visible:ring-2 focus-visible:ring-accent-400 rounded-md"
+                              draggable={false}
+                              onClick={(e) => {
+                                if (pointerDrag) e.preventDefault();
+                              }}
                             >
-                              {c.title}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-                              <span className="text-[10px] text-[rgb(var(--fg-muted))]">
-                                {TASK_TYPE_LABELS[c.task_type] ?? 'Задача'}
-                              </span>
-                              {subCount > 0 && (
-                                <span
-                                  className="inline-flex items-center gap-0.5 text-[10px] text-[rgb(var(--fg-muted))] tabular-nums"
-                                  title={`Этапы ${subDone}/${subCount}`}
-                                >
-                                  <GitBranch className="h-2.5 w-2.5" />
-                                  {subDone}/{subCount}
-                                </span>
-                              )}
-                            </div>
-                            {(c.due_date || stageDue) && (
                               <p
                                 className={cn(
-                                  'text-[10px] mt-1 flex items-center gap-1 font-medium',
-                                  c.due_date ? dueColor : 'text-[rgb(var(--fg-muted))]'
+                                  'text-sm font-semibold line-clamp-2 leading-snug hover:text-accent-500',
+                                  c.status === 'done' &&
+                                    'line-through text-[rgb(var(--fg-muted))]'
                                 )}
                               >
-                                <Calendar className="h-3 w-3 shrink-0 opacity-80" />
-                                <span className="truncate">
-                                  {stageDue && !c.due_date
-                                    ? `Этап · ${formatDate(stageDue)}`
-                                    : formatDate(c.due_date)}
-                                </span>
+                                {c.title}
                               </p>
-                            )}
-                            <div className="mt-1.5 h-1 rounded-full bg-[rgb(var(--bg-secondary))] overflow-hidden">
-                              <div
-                                className={cn(
-                                  'h-full rounded-full transition-[width]',
-                                  c.status === 'done'
-                                    ? 'bg-emerald-500'
-                                    : c.status === 'review'
-                                      ? 'bg-amber-500'
-                                      : 'bg-accent-500'
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                                <span className="text-[10px] text-[rgb(var(--fg-muted))]">
+                                  {TASK_TYPE_LABELS[c.task_type] ?? 'Задача'}
+                                </span>
+                                {subCount > 0 && (
+                                  <span
+                                    className="inline-flex items-center gap-0.5 text-[10px] text-[rgb(var(--fg-muted))] tabular-nums"
+                                    title={`Этапы ${subDone}/${subCount}`}
+                                  >
+                                    <GitBranch className="h-2.5 w-2.5" />
+                                    {subDone}/{subCount}
+                                  </span>
                                 )}
-                                style={{ width: `${Math.min(100, c.progress)}%` }}
-                              />
-                            </div>
-                          </Link>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="p-1.5 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-secondary))] shrink-0 touch-manipulation min-h-[32px] min-w-[32px] flex items-center justify-center"
-                                aria-label="Переместить"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              {MAIN_COLUMNS.filter((s) => s !== c.status).map((s) => (
-                                <DropdownMenuItem
-                                  key={s}
-                                  disabled={updateStatus.isPending}
-                                  onClick={() => void moveTo(c, s)}
+                              </div>
+                              {(c.due_date || stageDue) && (
+                                <p
+                                  className={cn(
+                                    'text-[10px] mt-1 flex items-center gap-1 font-medium',
+                                    c.due_date ? dueColor : 'text-[rgb(var(--fg-muted))]'
+                                  )}
                                 >
-                                  → {STATUS_LABELS[s]}
-                                </DropdownMenuItem>
-                              ))}
-                              {c.status !== 'cancelled' && (
-                                <DropdownMenuItem
-                                  disabled={updateStatus.isPending}
-                                  onClick={() => void moveTo(c, 'cancelled')}
-                                  className="text-red-500"
-                                >
-                                  → {STATUS_LABELS.cancelled}
-                                </DropdownMenuItem>
+                                  <Calendar className="h-3 w-3 shrink-0 opacity-80" />
+                                  <span className="truncate">
+                                    {stageDue && !c.due_date
+                                      ? `Этап · ${formatDate(stageDue)}`
+                                      : formatDate(c.due_date)}
+                                  </span>
+                                </p>
                               )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              <div className="mt-1.5 h-1 rounded-full bg-[rgb(var(--bg-secondary))] overflow-hidden">
+                                <div
+                                  className={cn(
+                                    'h-full rounded-full transition-[width] duration-300',
+                                    c.status === 'done'
+                                      ? 'bg-emerald-500'
+                                      : c.status === 'review'
+                                        ? 'bg-amber-500'
+                                        : 'bg-accent-500'
+                                  )}
+                                  style={{ width: `${Math.min(100, c.progress)}%` }}
+                                />
+                              </div>
+                            </Link>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="p-1.5 rounded-md text-[rgb(var(--fg-muted))] hover:bg-[rgb(var(--bg-secondary))] shrink-0 touch-manipulation min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                  aria-label="Переместить"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-44">
+                                {MAIN_COLUMNS.filter((s) => s !== c.status).map((s) => (
+                                  <DropdownMenuItem
+                                    key={s}
+                                    disabled={updateStatus.isPending}
+                                    onClick={() => void moveTo(c, s)}
+                                  >
+                                    → {STATUS_LABELS[s]}
+                                  </DropdownMenuItem>
+                                ))}
+                                {c.status !== 'cancelled' && (
+                                  <DropdownMenuItem
+                                    disabled={updateStatus.isPending}
+                                    onClick={() => void moveTo(c, 'cancelled')}
+                                    className="text-red-500"
+                                  >
+                                    → {STATUS_LABELS.cancelled}
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
-      <div className="shrink-0 w-3 lg:hidden" aria-hidden />
-    </div>
+          );
+        })}
+        <div className="shrink-0 w-3 lg:hidden" aria-hidden />
+      </div>
+
+      {/* Ghost card for touch drag */}
+      {pointerDrag && (
+        <div
+          className="pointer-events-none fixed z-50 w-[min(220px,70vw)] rounded-xl border border-accent-400 bg-[rgb(var(--bg-card))] shadow-2xl px-3 py-2 opacity-95"
+          style={{
+            left: pointerDrag.x,
+            top: pointerDrag.y,
+            transform: 'translate(-50%, -120%)',
+          }}
+        >
+          <p className="text-sm font-semibold line-clamp-2">{pointerDrag.title}</p>
+          <p className="text-[10px] text-[rgb(var(--fg-muted))] mt-0.5">
+            Отпустите над колонкой
+          </p>
+        </div>
+      )}
+    </>
   );
 }

@@ -132,3 +132,15 @@ export function getFileIcon(
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Дедлайн → ISO без сдвига календарного дня (local noon).
+ * `Date` из календаря часто = 00:00 local → toISOString() уезжает на вчера (UTC+).
+ */
+export function dueDateToIso(date: Date | string | null | undefined): string | null {
+  if (date == null || date === '') return null;
+  const d = typeof date === 'string' ? new Date(date) : new Date(date.getTime());
+  if (Number.isNaN(d.getTime())) return null;
+  d.setHours(12, 0, 0, 0);
+  return d.toISOString();
+}

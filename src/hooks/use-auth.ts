@@ -313,12 +313,14 @@ export function useAuth(): UseAuthReturn {
       setState((s) => ({ ...s, isLoading: false, error: error.message }));
       return false;
     }
+    // session придёт через onAuthStateChange; не оставляем вечный спиннер
+    setState((s) => ({ ...s, isLoading: false, error: null }));
     return true;
   }, []);
 
   const signUpWithEmail = useCallback(async (email: string, password: string) => {
     setState((s) => ({ ...s, isLoading: true, error: null }));
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -332,6 +334,18 @@ export function useAuth(): UseAuthReturn {
       setState((s) => ({ ...s, isLoading: false, error: error.message }));
       return false;
     }
+    // Без подтверждения email сессии может не быть — всегда снимаем isLoading
+    if (!data.session) {
+      setState((s) => ({
+        ...s,
+        isLoading: false,
+        error: null,
+        linkMessage:
+          'Аккаунт создан. Если включено подтверждение email — проверьте почту, затем войдите.',
+      }));
+      return true;
+    }
+    setState((s) => ({ ...s, isLoading: false, error: null }));
     return true;
   }, []);
 

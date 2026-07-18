@@ -42,6 +42,9 @@ export async function spawnNextOccurrence(
     if (next > until) return null;
   }
 
+  // local noon — без сдвига календарного дня в UTC
+  next.setHours(12, 0, 0, 0);
+
   return createContest(
     {
       title: contest.title,
@@ -57,6 +60,7 @@ export async function spawnNextOccurrence(
       recurrence: contest.recurrence,
       recurrence_until: contest.recurrence_until,
       parent_id: null,
+      workspace_id: contest.workspace_id ?? null,
     },
     userId
   );

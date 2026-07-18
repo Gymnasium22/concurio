@@ -179,7 +179,8 @@ export function useAnalytics() {
         sortBy: 'created_at',
         sortOrder: 'desc',
         rootOnly: true,
-        workspaceId: workspaceId || undefined,
+        workspaceId: workspaceId ?? 'all',
+        personalOnly: workspaceId === 'all' ? false : undefined,
       });
       return { contests, analytics: computeAnalytics(contests) };
     },
@@ -201,6 +202,8 @@ export function useTrash() {
         sortOrder: 'desc',
         rootOnly: false,
         trash: true,
+        // Корзина: и личные, и workspace
+        personalOnly: false,
       }),
   });
 }

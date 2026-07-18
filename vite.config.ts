@@ -21,15 +21,26 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-pdf': ['jspdf', 'react-pdf', 'pdfjs-dist'],
-          'vendor-motion': ['framer-motion'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+          if (id.includes('jspdf') || id.includes('react-pdf') || id.includes('pdfjs'))
+            return 'vendor-pdf';
+          if (id.includes('framer-motion')) return 'vendor-motion';
+          if (id.includes('@supabase')) return 'vendor-supabase';
+          if (id.includes('@tanstack')) return 'vendor-query';
+          if (
+            id.includes('react-dom') ||
+            id.includes('react-router') ||
+            id.includes('/react/') ||
+            id.includes('\\react\\')
+          )
+            return 'vendor-react';
+          if (id.includes('date-fns')) return 'vendor-date';
+          if (id.includes('@radix-ui')) return 'vendor-radix';
         },
       },
     },
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 650,
   },
 });

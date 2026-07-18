@@ -20,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ListTodo,
-  Plus,
   FileDown,
   Table,
   CalendarRange,
@@ -48,6 +47,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { FOCUS_TAB_LABELS, matchesFocusTab, type FocusTab } from '@/lib/focus-buckets';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/ui/empty-state';
+import { workspaceScopeLabel } from '@/lib/workspace-scope';
 
 const PAGE_SIZE = 20;
 
@@ -63,7 +64,7 @@ export function Dashboard() {
   const priorityFilter = useAppStore((s) => s.priorityFilter);
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
   const { data: workspaces } = useWorkspaces();
-  const activeWsName = workspaces?.find((w) => w.id === activeWorkspaceId)?.name;
+  const activeWsName = workspaceScopeLabel(activeWorkspaceId, workspaces);
 
   const [pdfBusy, setPdfBusy] = useState(false);
   const [pageExtra, setPageExtra] = useState(0);
@@ -348,31 +349,33 @@ export function Dashboard() {
                   ))}
                 </div>
               ) : !contests || contests.length === 0 ? (
-                <div className="glass-subtle p-8 sm:p-10 rounded-3xl flex flex-col items-center text-center border-dashed border-2 border-[rgb(var(--border-default))]">
-                  <div className="h-14 w-14 rounded-full bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center mb-3">
-                    <ListTodo className="h-7 w-7 text-accent-500" />
-                  </div>
-                  <h3 className="text-lg font-bold mb-1">
-                    {statusFilter === 'done'
+                <EmptyState
+                  icon={<ListTodo className="h-7 w-7 text-accent-500" />}
+                  title={
+                    statusFilter === 'done'
                       ? 'Нет готовых задач'
                       : hideCompleted
                         ? 'Нет активных задач'
-                        : 'Пока пусто'}
-                  </h3>
-                  <p className="text-sm text-[rgb(var(--fg-secondary))] mb-5 max-w-sm">
-                    {statusFilter === 'done'
+                        : 'Пока пусто'
+                  }
+                  description={
+                    statusFilter === 'done'
                       ? 'Закройте задачу статусом «Готово» — она появится здесь.'
                       : hideCompleted
-                        ? 'Всё сделано — или откройте только готовые (иконка глаза).'
-                        : 'Создайте первую задачу.'}
-                  </p>
-                  <Link to="/create">
-                    <Button className="gap-2 min-h-[44px]">
-                      <Plus className="h-4 w-4" />
-                      Создать
-                    </Button>
-                  </Link>
-                </div>
+                        ? 'Всё сделано — или откройте готовые (иконка глаза). Шаблон «на неделю» — быстрый старт.'
+                        : 'Один клик — и первая задача. Или ⌘K → «Создать».'
+                  }
+                  actionLabel="Создать задачу"
+                  actionTo="/create"
+                  secondary={
+                    <Link
+                      to="/create?template=weekly"
+                      className="text-xs font-medium text-accent-600 dark:text-accent-400 hover:underline"
+                    >
+                      Или шаблон «На неделю»
+                    </Link>
+                  }
+                />
               ) : focusedContests.length === 0 && focusFilter ? (
                 <div className="rounded-2xl border border-dashed border-[rgb(var(--border-default))] px-4 py-8 text-center space-y-3">
                   <p className="text-sm text-[rgb(var(--fg-secondary))]">

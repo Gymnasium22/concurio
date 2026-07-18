@@ -28,6 +28,13 @@ export interface ContestListFilters {
   workspaceId?: string | null;
   /** trash = only deleted; active = not deleted (default) */
   trash?: boolean;
+  /**
+   * workspaceId:
+   * - 'all' / personalOnly:false → без фильтра
+   * - 'personal' / null → workspace_id IS NULL
+   * - uuid → eq workspace_id
+   */
+  personalOnly?: boolean;
 }
 
 export function normalizeContest(row: Record<string, unknown>): Contest {
@@ -199,7 +206,8 @@ async function applySubtaskProgressSync(
     progress: allDone ? 100 : Math.min(progress, 99),
     status,
   };
-  if (status === 'done' && parentStatus !== 'done') {
+  const becameDone = status === 'done' && parentStatus !== 'done';
+  if (becameDone) {
     updates.completed_at = new Date().toISOString();
   } else if (status !== 'done' && parentStatus === 'done') {
     updates.completed_at = null;
@@ -210,6 +218,26 @@ async function applySubtaskProgressSync(
     .update(updates)
     .eq('id', parentId);
   if (updError) throw new Error(updError.message);
+
+  // Повтор: если родитель только что стал done через этапы — создать следующий экземпляр
+  if (becameDone) {
+    try {
+      const { data: parentFull } = await supabase
+        .from('contests')
+        .select('*')
+        .eq('id', parentId)
+        .single();
+      if (parentFull) {
+        const parent = normalizeContest(parentFull as Record<string, unknown>);
+        if (parent.recurrence && parent.recurrence !== 'none' && parent.user_id) {
+          const { spawnNextOccurrence } = await import('@/lib/recurrence');
+          await spawnNextOccurrence(parent, parent.user_id);
+        }
+      }
+    } catch {
+      /* best-effort: не блокируем sync прогресса */
+    }
+  }
 
   return { progress: updates.progress ?? progress, status };
 }
@@ -256,8 +284,17 @@ export async function fetchContests(filters: ContestListFilters): Promise<Contes
     query = query.is('deleted_at', null);
   }
 
-  if (filters.workspaceId) {
+  if (
+    filters.workspaceId &&
+    filters.workspaceId !== 'all' &&
+    filters.workspaceId !== 'personal'
+  ) {
     query = query.eq('workspace_id', filters.workspaceId);
+  } else if (filters.workspaceId === 'all' || filters.personalOnly === false) {
+    // все задачи пользователя (личные + workspace)
+  } else {
+    // personal / null
+    query = query.is('workspace_id', null);
   }
 
   if (filters.parentId) {
@@ -329,6 +366,17 @@ async function fetchContestsLegacy(filters: ContestListFilters): Promise<Contest
   let query = supabase.from('contests').select('*');
   if (filters.parentId) query = query.eq('parent_id', filters.parentId);
   else if (filters.rootOnly !== false) query = query.is('parent_id', null);
+  if (
+    filters.workspaceId &&
+    filters.workspaceId !== 'all' &&
+    filters.workspaceId !== 'personal'
+  ) {
+    query = query.eq('workspace_id', filters.workspaceId);
+  } else if (filters.workspaceId === 'all' || filters.personalOnly === false) {
+    /* all */
+  } else {
+    query = query.is('workspace_id', null);
+  }
   if (filters.statusFilter !== 'all') query = query.eq('status', filters.statusFilter);
   else if (filters.hideCompleted) query = query.not('status', 'in', '(done,cancelled)');
   if (filters.taskTypeFilter !== 'all')
@@ -348,9 +396,10 @@ async function fetchContestsLegacy(filters: ContestListFilters): Promise<Contest
 }
 
 export async function softDeleteContest(id: string): Promise<void> {
+  const ts = new Date().toISOString();
   const { error } = await supabase
     .from('contests')
-    .update({ deleted_at: new Date().toISOString() })
+    .update({ deleted_at: ts })
     .eq('id', id);
   if (error) {
     // fallback hard delete
@@ -360,6 +409,15 @@ export async function softDeleteContest(id: string): Promise<void> {
     }
     throw new Error(error.message);
   }
+  // Каскад: подзадачи тоже в корзину (иначе «висят» без родителя)
+  const { error: childErr } = await supabase
+    .from('contests')
+    .update({ deleted_at: ts })
+    .eq('parent_id', id)
+    .is('deleted_at', null);
+  if (childErr && !/deleted_at|column/i.test(childErr.message)) {
+    throw new Error(childErr.message);
+  }
 }
 
 export async function restoreContest(id: string): Promise<void> {
@@ -368,6 +426,14 @@ export async function restoreContest(id: string): Promise<void> {
     .update({ deleted_at: null })
     .eq('id', id);
   if (error) throw new Error(error.message);
+  // Восстанавливаем прямых детей, удалённых вместе с родителем
+  const { error: childErr } = await supabase
+    .from('contests')
+    .update({ deleted_at: null })
+    .eq('parent_id', id);
+  if (childErr && !/deleted_at|column/i.test(childErr.message)) {
+    throw new Error(childErr.message);
+  }
 }
 
 export async function fetchContestById(id: string): Promise<Contest> {
@@ -504,8 +570,35 @@ export async function deleteContest(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const { data, error } = await supabase.from('contests').select('*');
+export async function fetchDashboardStats(
+  workspaceId: string | null = 'all'
+): Promise<DashboardStats> {
+  let query = supabase
+    .from('contests')
+    .select('*')
+    .is('deleted_at', null)
+    .is('parent_id', null);
+
+  if (workspaceId && workspaceId !== 'all' && workspaceId !== 'personal') {
+    query = query.eq('workspace_id', workspaceId);
+  } else if (!workspaceId || workspaceId === 'personal') {
+    query = query.is('workspace_id', null);
+  }
+
+  let { data, error } = await query;
+  if (error && /deleted_at|column/i.test(error.message)) {
+    // legacy без soft-delete
+    let legacy = supabase.from('contests').select('*').is('parent_id', null);
+    if (workspaceId && workspaceId !== 'all' && workspaceId !== 'personal') {
+      legacy = legacy.eq('workspace_id', workspaceId);
+    } else if (!workspaceId || workspaceId === 'personal') {
+      legacy = legacy.is('workspace_id', null);
+    }
+    const fb = await legacy;
+    if (fb.error) throw new Error(fb.error.message);
+    data = fb.data;
+    error = null;
+  }
   if (error) throw new Error(error.message);
 
   const contests = (data ?? []).map((r) =>
@@ -514,38 +607,35 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 });
 
+  const roots = contests; // уже только root + active
+
   return {
-    total: contests.filter((c) => !c.parent_id).length,
-    completed: contests.filter((c) => !c.parent_id && c.status === 'done').length,
-    overdue: contests.filter(
+    total: roots.length,
+    completed: roots.filter((c) => c.status === 'done').length,
+    overdue: roots.filter(
       (c) =>
-        !c.parent_id &&
         c.due_date &&
         isBefore(new Date(c.due_date), now) &&
         c.status !== 'done' &&
         c.status !== 'cancelled'
     ).length,
-    inProgress: contests.filter(
-      (c) => !c.parent_id && (c.status === 'in_progress' || c.status === 'review')
-    ).length,
-    completedThisWeek: contests.filter(
+    inProgress: roots.filter((c) => c.status === 'in_progress' || c.status === 'review')
+      .length,
+    completedThisWeek: roots.filter((c) => {
+      if (c.status !== 'done') return false;
+      const stamp = c.completed_at || c.updated_at;
+      return stamp ? isAfter(new Date(stamp), weekStart) : false;
+    }).length,
+    upcomingDeadlines: roots.filter(
       (c) =>
-        !c.parent_id &&
-        c.status === 'done' &&
-        c.updated_at &&
-        isAfter(new Date(c.updated_at), weekStart)
-    ).length,
-    upcomingDeadlines: contests.filter(
-      (c) =>
-        !c.parent_id &&
         c.due_date &&
         isAfter(new Date(c.due_date), now) &&
         isBefore(new Date(c.due_date), addDays(now, 7)) &&
         c.status !== 'done' &&
         c.status !== 'cancelled'
     ).length,
-    contests: contests.filter((c) => !c.parent_id && c.task_type === 'contest').length,
-    tasks: contests.filter((c) => !c.parent_id && c.task_type !== 'contest').length,
+    contests: roots.filter((c) => c.task_type === 'contest').length,
+    tasks: roots.filter((c) => c.task_type !== 'contest').length,
   };
 }
 
@@ -562,15 +652,23 @@ export async function fetchActivityHeatmap(
     .select('created_at')
     .gte('created_at', since.toISOString());
 
-  // Если таблицы нет — считаем по updated_at задач
+  // Если таблицы нет — считаем по updated_at активных задач
   if (error) {
-    const { data: contests, error: cErr } = await supabase
+    const q = supabase
       .from('contests')
       .select('updated_at')
-      .gte('updated_at', since.toISOString());
-    if (cErr) throw new Error(cErr.message);
+      .gte('updated_at', since.toISOString())
+      .is('deleted_at', null);
+    let res = await q;
+    if (res.error && /deleted_at|column/i.test(res.error.message)) {
+      res = await supabase
+        .from('contests')
+        .select('updated_at')
+        .gte('updated_at', since.toISOString());
+    }
+    if (res.error) throw new Error(res.error.message);
     return bucketByDay(
-      (contests ?? []).map((c) => c.updated_at as string),
+      (res.data ?? []).map((c) => c.updated_at as string),
       days
     );
   }

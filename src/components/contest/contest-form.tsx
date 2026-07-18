@@ -35,7 +35,7 @@ import {
   getTemplateById,
   type TaskTemplate,
 } from '@/lib/task-templates';
-import { cn, isValidTelegramLink } from '@/lib/utils';
+import { cn, dueDateToIso, isValidTelegramLink } from '@/lib/utils';
 import { isTelegramApp } from '@/lib/telegram';
 import type {
   Contest,
@@ -147,7 +147,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
             id: initialData.id,
             title: title.trim(),
             description: description.trim() || null,
-            due_date: dueDate ? dueDate.toISOString() : null,
+            due_date: dueDateToIso(dueDate),
             status,
             task_type: taskType,
             priority,
@@ -162,7 +162,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
           const insertData: ContestInsert = {
             title: title.trim(),
             description: description.trim() || null,
-            due_date: dueDate ? dueDate.toISOString() : null,
+            due_date: dueDateToIso(dueDate),
             status,
             task_type: taskType,
             priority,
@@ -186,7 +186,7 @@ export function ContestForm({ initialData, isEdit = false }: ContestFormProps) {
                   status: 'todo',
                   progress: 0,
                   priority,
-                  due_date: daysFromNow(stage.daysFromStart).toISOString(),
+                  due_date: dueDateToIso(daysFromNow(stage.daysFromStart)),
                   position: i,
                 });
               }

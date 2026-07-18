@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ContestStatus, TaskPriority, TaskType, ThemeMode } from '@/types';
+import { normalizeWorkspaceScope, type WorkspaceScope } from '@/lib/workspace-scope';
 
 interface AppState {
   // Тема
@@ -37,26 +38,28 @@ interface AppState {
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
 
-  /** Активный workspace (null = личные) */
-  activeWorkspaceId: string | null;
-  setActiveWorkspaceId: (id: string | null) => void;
+  /**
+   * Область задач:
+   * - 'personal' — только личные
+   * - 'all' — все (личные + workspace)
+   * - uuid — конкретный workspace
+   */
+  activeWorkspaceId: WorkspaceScope;
+  setActiveWorkspaceId: (id: WorkspaceScope) => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      // Тема (по умолчанию — системная)
       theme: 'system',
       setTheme: (theme) => {
         set({ theme });
         applyTheme(theme);
       },
 
-      // Telegram
       isTelegramApp: false,
       setIsTelegramApp: (value) => set({ isTelegramApp: value }),
 
-      // Фильтры
       searchQuery: '',
       setSearchQuery: (query) => set({ searchQuery: query }),
       statusFilter: 'all',
@@ -72,16 +75,15 @@ export const useAppStore = create<AppState>()(
       sortOrder: 'asc',
       setSortOrder: (order) => set({ sortOrder: order }),
 
-      // UI
       isMobileMenuOpen: false,
       setMobileMenuOpen: (open) => set({ isMobileMenuOpen: open }),
 
-      activeWorkspaceId: null,
-      setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
+      activeWorkspaceId: 'all',
+      setActiveWorkspaceId: (id) =>
+        set({ activeWorkspaceId: normalizeWorkspaceScope(id) }),
     }),
     {
       name: 'concurio-settings',
-      // Сохраняем только настройки, не UI-state
       partialize: (state) => ({
         theme: state.theme,
         sortBy: state.sortBy,
@@ -89,13 +91,22 @@ export const useAppStore = create<AppState>()(
         hideCompleted: state.hideCompleted,
         activeWorkspaceId: state.activeWorkspaceId,
       }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppState>;
+        return {
+          ...current,
+          ...p,
+          activeWorkspaceId: normalizeWorkspaceScope(
+            p.activeWorkspaceId === undefined
+              ? current.activeWorkspaceId
+              : p.activeWorkspaceId
+          ),
+        };
+      },
     }
   )
 );
 
-/**
- * Применить тему к документу
- */
 function applyTheme(theme: ThemeMode): void {
   const root = document.documentElement;
 
@@ -104,7 +115,6 @@ function applyTheme(theme: ThemeMode): void {
   } else if (theme === 'light') {
     root.classList.remove('dark');
   } else {
-    // 'system' — следуем системным настройкам
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (prefersDark) {
       root.classList.add('dark');
@@ -114,13 +124,11 @@ function applyTheme(theme: ThemeMode): void {
   }
 }
 
-// Инициализация темы при загрузке
 if (typeof window !== 'undefined') {
   const savedTheme = (JSON.parse(localStorage.getItem('concurio-settings') || '{}')?.state
     ?.theme ?? 'system') as ThemeMode;
   applyTheme(savedTheme);
 
-  // Слушаем изменения системной темы
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     const currentTheme = useAppStore.getState().theme;
     if (currentTheme === 'system') {

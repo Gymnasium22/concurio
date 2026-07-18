@@ -13,7 +13,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { STATUS_LABELS, progressForStatusChange } from '@/lib/constants';
-import { formatDate, getDeadlineUrgency, getUrgencyColor, cn } from '@/lib/utils';
+import {
+  formatDate,
+  getDeadlineUrgency,
+  getUrgencyColor,
+  cn,
+  dueDateToIso,
+} from '@/lib/utils';
 import { Loader2, Plus, GitBranch, Calendar, GripVertical } from 'lucide-react';
 import type { ContestStatus } from '@/types';
 
@@ -39,7 +45,7 @@ export function SubtasksPanel({ parentId }: { parentId: string }) {
       task_type: 'task',
       status: 'todo',
       progress: 0,
-      due_date: dueDate ? new Date(dueDate).toISOString() : null,
+      due_date: dueDateToIso(dueDate || null),
     });
     setTitle('');
     setDueDate('');
@@ -129,7 +135,7 @@ export function SubtasksPanel({ parentId }: { parentId: string }) {
                         const v = e.target.value;
                         void update.mutateAsync({
                           id: s.id,
-                          due_date: v ? new Date(v).toISOString() : null,
+                          due_date: dueDateToIso(v || null),
                         });
                       }}
                       title={s.due_date ? formatDate(s.due_date) : 'Дедлайн'}

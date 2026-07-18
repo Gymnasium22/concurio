@@ -16,9 +16,11 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { AccountSettings } from '@/components/layout/account-settings';
 import { ShareDialog } from '@/components/share/share-dialog';
+import { CommandPalette } from '@/components/command-palette';
 import { useAppStore } from '@/stores/app-store';
 import { useWorkspaces } from '@/hooks/use-platform';
 import { cn } from '@/lib/utils';
+import { workspaceScopeLabel } from '@/lib/workspace-scope';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,7 +49,8 @@ export function Header() {
   const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
   const setActiveWorkspaceId = useAppStore((s) => s.setActiveWorkspaceId);
   const { data: workspaces } = useWorkspaces();
-  const activeWs = workspaces?.find((w) => w.id === activeWorkspaceId);
+  const scopeLabel = workspaceScopeLabel(activeWorkspaceId, workspaces);
+  const scoped = activeWorkspaceId !== 'all' && activeWorkspaceId !== 'personal';
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -86,7 +89,7 @@ export function Header() {
         >
           <div className="flex items-center gap-2 min-w-0">
             <Link to="/" className="flex items-center gap-2 shrink-0 min-w-0">
-              <div className="h-8 w-8 shrink-0 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-md">
+              <div className="h-8 w-8 shrink-0 rounded-xl bg-gradient-to-br from-accent-500 to-accent-700 flex items-center justify-center shadow-md ring-2 ring-accent-500/10">
                 <CheckSquare className="h-4 w-4 text-white" />
               </div>
               <span
@@ -99,38 +102,43 @@ export function Header() {
               </span>
             </Link>
 
-            {/* Контекст workspace */}
-            {(workspaces?.length ?? 0) > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      'hidden sm:inline-flex max-w-[9rem] truncate items-center rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors',
-                      activeWorkspaceId
-                        ? 'border-accent-300 bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300'
-                        : 'border-[rgb(var(--border-default))] text-[rgb(var(--fg-muted))]'
-                    )}
-                  >
-                    {activeWs?.name ?? 'Личное'}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuItem onClick={() => setActiveWorkspaceId(null)}>
-                    Личное
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {(workspaces ?? []).map((w) => (
-                    <DropdownMenuItem
-                      key={w.id}
-                      onClick={() => setActiveWorkspaceId(w.id)}
-                    >
-                      {w.name}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            {/* Контекст: Все / Личное / workspace */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    'inline-flex max-w-[7.5rem] sm:max-w-[10rem] truncate items-center rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors',
+                    scoped || activeWorkspaceId === 'personal'
+                      ? 'border-accent-300 bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-300'
+                      : 'border-[rgb(var(--border-default))] text-[rgb(var(--fg-muted))]'
+                  )}
+                >
+                  {scopeLabel}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-52">
+                <DropdownMenuItem onClick={() => setActiveWorkspaceId('all')}>
+                  Все задачи
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setActiveWorkspaceId('personal')}>
+                  Личное
+                </DropdownMenuItem>
+                {(workspaces?.length ?? 0) > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {(workspaces ?? []).map((w) => (
+                      <DropdownMenuItem
+                        key={w.id}
+                        onClick={() => setActiveWorkspaceId(w.id)}
+                      >
+                        {w.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <nav className="hidden md:flex items-center gap-0.5" aria-label="Основное меню">
@@ -178,12 +186,12 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* Тема на mobile — в профиле; в шапке только tablet+ (и не в TG) */}
+            <CommandPalette />
             {!isTg && <ThemeToggle className="hidden sm:inline-flex" />}
             <ShareDialog />
             <AccountSettings />
             <Link to="/create" className="hidden md:block">
-              <Button size="sm" className="gap-1.5">
+              <Button size="sm" className="gap-1.5 shadow-sm shadow-accent-500/15">
                 <Plus className="h-4 w-4" />
                 <span>Создать</span>
               </Button>

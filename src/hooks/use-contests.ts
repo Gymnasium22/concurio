@@ -146,9 +146,10 @@ export function useAttachments(contestId: string | undefined) {
 }
 
 export function useDashboardStats() {
+  const activeWorkspaceId = useAppStore((s) => s.activeWorkspaceId);
   return useQuery({
-    queryKey: QUERY_KEYS.stats,
-    queryFn: (): Promise<DashboardStats> => fetchDashboardStats(),
+    queryKey: [...QUERY_KEYS.stats, activeWorkspaceId],
+    queryFn: (): Promise<DashboardStats> => fetchDashboardStats(activeWorkspaceId),
     staleTime: 60_000,
   });
 }
@@ -181,7 +182,12 @@ export function useCreateContest() {
 
       const rules = await fetchAutomationRules();
       let payload = applyRulesToInsert(rules, input, 'on_create');
-      if (activeWorkspaceId && !payload.workspace_id) {
+      if (
+        activeWorkspaceId &&
+        activeWorkspaceId !== 'all' &&
+        activeWorkspaceId !== 'personal' &&
+        !payload.workspace_id
+      ) {
         payload = { ...payload, workspace_id: activeWorkspaceId };
       }
       return createContest(payload, user.id);
@@ -306,13 +312,37 @@ export function useUpdateContestStatus() {
       status: ContestStatus;
       progress?: number;
     }) => {
-      return updateContestMutation.mutateAsync({
+      const { isOnline, enqueueOffline } = await import('@/lib/offline-queue');
+      if (!isOnline()) {
+        enqueueOffline({
+          type: 'update_status',
+          contestId: id,
+          status,
+          progress,
+        });
+        // оптимистично возвращаем «как будто» обновили
+        const prev = await fetchContestById(id).catch(() => null);
+        if (!prev)
+          throw new Error('Нет сети. Действие в очереди — откройте задачу позже.');
+        return {
+          ...prev,
+          status,
+          progress: progress ?? prev.progress,
+          completed_at: status === 'done' ? new Date().toISOString() : null,
+        };
+      }
+
+      const updated = await updateContestMutation.mutateAsync({
         id,
         status,
         progress,
-        // Аналитика и «готово» зависят от completed_at
         completed_at: status === 'done' ? new Date().toISOString() : null,
       });
+      if (status === 'done') {
+        const { celebrateDone } = await import('@/components/ui/celebrate');
+        celebrateDone();
+      }
+      return updated;
     },
   });
 }

@@ -24,6 +24,8 @@ import { LoginPage } from '@/components/auth/login-page';
 import { Toaster } from '@/components/ui/toaster';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { OnboardingModal } from '@/components/onboarding/onboarding-modal';
+import { OfflineBanner } from '@/components/layout/offline-banner';
+import { CelebrateHost } from '@/components/ui/celebrate';
 import { toast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
 import { initSentry, captureError } from '@/lib/sentry';
@@ -213,7 +215,9 @@ export default function App() {
           >
             Перейти к содержимому
           </a>
+          <OfflineBanner />
           <AppRouter />
+          <CelebrateHost />
           <Toaster />
         </BrowserRouter>
       </QueryClientProvider>

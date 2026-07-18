@@ -61,7 +61,10 @@ export function WorkspacePage() {
   const [copied, setCopied] = useState(false);
   const [lastInviteUrl, setLastInviteUrl] = useState<string | null>(null);
 
-  const selected = activeId || workspaces?.[0]?.id || '';
+  const selected =
+    activeId && activeId !== 'all' && activeId !== 'personal'
+      ? activeId
+      : workspaces?.[0]?.id || '';
   const invite = useCreateInvite(selected);
   const { data: members, isLoading: memLoading } = useWorkspaceMembers(
     selected || undefined
@@ -165,10 +168,22 @@ export function WorkspacePage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => setActive(null)}
+            onClick={() => setActive('all')}
             className={cn(
               'rounded-xl px-3 py-2 text-sm border transition-colors min-h-[40px]',
-              !activeId
+              activeId === 'all'
+                ? 'border-accent-400 bg-accent-50 text-accent-800 dark:bg-accent-900/30 dark:text-accent-200 font-medium'
+                : 'border-[rgb(var(--border-default))] hover:bg-[rgb(var(--bg-secondary))]'
+            )}
+          >
+            Все
+          </button>
+          <button
+            type="button"
+            onClick={() => setActive('personal')}
+            className={cn(
+              'rounded-xl px-3 py-2 text-sm border transition-colors min-h-[40px]',
+              activeId === 'personal'
                 ? 'border-accent-400 bg-accent-50 text-accent-800 dark:bg-accent-900/30 dark:text-accent-200 font-medium'
                 : 'border-[rgb(var(--border-default))] hover:bg-[rgb(var(--bg-secondary))]'
             )}
@@ -196,7 +211,7 @@ export function WorkspacePage() {
             </button>
           ))}
         </div>
-        {activeId && (
+        {activeId !== 'all' && activeId !== 'personal' && (
           <p className="text-xs text-[rgb(var(--fg-muted))]">
             Новые задачи попадут в выбранную команду.
           </p>

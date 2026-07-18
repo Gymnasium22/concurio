@@ -26,11 +26,13 @@ export function LoginPage() {
     error,
     linkSuccess,
     linkMessage,
+    clearLinkState,
   } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authInProgress, setAuthInProgress] = useState(false);
+  const [resetHint, setResetHint] = useState<string | null>(null);
 
   const isTg = isTelegramApp();
   const isLinkFlow = isTelegramLinkFlow();
@@ -55,9 +57,11 @@ export function LoginPage() {
 
   const handleForgotPassword = async () => {
     if (!email.trim()) {
+      setResetHint('Введите email — на него придёт ссылка для сброса');
       return;
     }
     setAuthInProgress(true);
+    setResetHint(null);
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
@@ -66,11 +70,10 @@ export function LoginPage() {
         }
       );
       if (resetError) {
-        // показываем через alert — useAuth error может не обновиться
-        alert(resetError.message);
+        setResetHint(resetError.message);
       } else {
-        alert(
-          'Если аккаунт с таким email есть, письмо для сброса пароля отправлено. Проверьте почту (и спам).'
+        setResetHint(
+          'Если аккаунт с таким email есть, письмо для сброса отправлено. Проверьте почту и спам.'
         );
       }
     } finally {
@@ -144,6 +147,11 @@ export function LoginPage() {
                 {error}
               </div>
             )}
+            {!error && linkMessage && !isLinkFlow && (
+              <div className="mb-6 p-3 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-medium dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300">
+                {linkMessage}
+              </div>
+            )}
 
             {isTg ? (
               <div className="space-y-4">
@@ -202,15 +210,20 @@ export function LoginPage() {
                 </form>
 
                 {isLogin && (
-                  <div className="text-center space-y-1">
+                  <div className="text-center space-y-1.5">
                     <button
                       type="button"
                       onClick={handleForgotPassword}
-                      disabled={authInProgress || !email.trim()}
+                      disabled={authInProgress}
                       className="text-sm text-accent-500 hover:underline disabled:opacity-50"
                     >
                       Забыли пароль?
                     </button>
+                    {resetHint && (
+                      <p className="text-xs text-[rgb(var(--fg-secondary))] leading-snug px-1">
+                        {resetHint}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -220,7 +233,10 @@ export function LoginPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setIsLogin(!isLogin)}
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      clearLinkState();
+                    }}
                     className="ml-1 font-medium text-accent-500 hover:underline"
                   >
                     {isLogin ? 'Зарегистрироваться' : 'Войти'}
