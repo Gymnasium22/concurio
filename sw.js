@@ -1,6 +1,6 @@
 /* Minimal offline shell for Concurio PWA */
 /* Bump CACHE when shell changes so clients drop stale index/html */
-const CACHE = 'concurio-shell-v2';
+const CACHE = 'concurio-shell-v3';
 const SHELL = ['./', './index.html', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {

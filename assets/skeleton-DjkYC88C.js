@@ -1,0 +1,1 @@
+import{j as a}from"./vendor-react-bh5Y3mDi.js";import{c as t}from"./index-dNDi5Ahr.js";function i({className:r,...e}){return a.jsx("div",{className:t("rounded-xl bg-gradient-to-r from-[rgb(var(--bg-secondary))] via-[rgb(var(--bg-elevated))] to-[rgb(var(--bg-secondary))]","bg-[length:200%_100%] animate-[shimmer_1.6s_ease-in-out_infinite]",r),...e})}export{i as S};
