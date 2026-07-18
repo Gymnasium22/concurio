@@ -30,7 +30,10 @@ async function replayAction(action: OfflineAction): Promise<void> {
     } = await supabase.auth.getSession();
     const userId = session?.user?.id;
     if (!userId) throw new Error('Нет сессии');
-    await createContest(action.payload as import('@/types').ContestInsert, userId);
+    await createContest(
+      action.payload as unknown as import('@/types').ContestInsert,
+      userId
+    );
   }
 }
 

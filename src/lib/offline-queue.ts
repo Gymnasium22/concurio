@@ -17,6 +17,18 @@ export type OfflineAction =
       createdAt: number;
     };
 
+export type OfflineActionInput =
+  | {
+      type: 'update_status';
+      contestId: string;
+      status: string;
+      progress?: number;
+    }
+  | {
+      type: 'create_task';
+      payload: Record<string, unknown>;
+    };
+
 const KEY = 'concurio-offline-queue-v1';
 
 export function loadOfflineQueue(): OfflineAction[] {
@@ -38,13 +50,11 @@ export function saveOfflineQueue(items: OfflineAction[]): void {
   }
 }
 
-export function enqueueOffline(
-  action: Omit<OfflineAction, 'id' | 'createdAt'> & { id?: string }
-): void {
+export function enqueueOffline(action: OfflineActionInput): void {
   const items = loadOfflineQueue();
   items.push({
     ...action,
-    id: action.id ?? crypto.randomUUID(),
+    id: crypto.randomUUID(),
     createdAt: Date.now(),
   } as OfflineAction);
   saveOfflineQueue(items);
